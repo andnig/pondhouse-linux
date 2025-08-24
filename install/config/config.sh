@@ -5,8 +5,9 @@ mkdir -p ~/.config
 
 # cp -R ~/.local/share/omarchy/config/* ~/.config/
 # Use stow instead of cp to allow symlinked updates
-for dir in ~/.local/share/omarchy/config/*/; do
-  stow -d ~/.local/share/omarchy/config -t ~/.config -R "$(basename "$dir")"
+for dir in ~/.local/share/omarchy/config/*; do
+  dirname=$(basename "$dir")
+  ln -sfn "$HOME/.local/share/omarchy/config/$dirname" "$HOME/.config/$dirname"
 done
 
 # Use default bashrc from Omarchy

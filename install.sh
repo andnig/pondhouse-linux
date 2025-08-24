@@ -66,6 +66,7 @@ source $OMARCHY_INSTALL/apps/mimetypes.sh
 source $OMARCHY_INSTALL/custom/pacman.sh
 source $OMARCHY_INSTALL/custom/yay.sh
 source $OMARCHY_INSTALL/custom/node-npm.sh
+source $OMARCHY_INSTALL/custom/home.sh
 
 # Updates
 sudo updatedb

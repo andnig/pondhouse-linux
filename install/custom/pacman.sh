@@ -1,3 +1,5 @@
+#!/bin/bash
+
 sudo pacman -S --needed \
   devtools base-devel gum wget curl unzip inetutils fd eza fzf ripgrep \
   zoxide bat wl-clipboard fastfetch btop man less whois plocate \
