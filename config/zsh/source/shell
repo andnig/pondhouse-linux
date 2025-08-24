@@ -1,0 +1,10 @@
+# History control
+setopt APPEND_HISTORY
+setopt HIST_IGNORE_DUPS
+setopt HIST_IGNORE_SPACE
+HISTFILE=~/.zsh_history
+HISTSIZE=32768
+SAVEHIST=32768
+
+# Set complete path
+export PATH="./bin:$HOME/.local/bin:$PATH"

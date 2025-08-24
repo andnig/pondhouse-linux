@@ -17,6 +17,7 @@ source $OMARCHY_INSTALL/preflight/migrations.sh
 
 # Configuration
 source $OMARCHY_INSTALL/config/config.sh
+source $OMARCHY_INSTALL/config/zsh.sh
 source $OMARCHY_INSTALL/config/branding.sh
 source $OMARCHY_INSTALL/config/network.sh
 source $OMARCHY_INSTALL/config/power.sh
@@ -41,8 +42,8 @@ source $OMARCHY_INSTALL/login/alt-bootloaders.sh
 # Development
 source $OMARCHY_INSTALL/development/terminal.sh
 source $OMARCHY_INSTALL/development/development.sh
-source $OMARCHY_INSTALL/development/nvim.sh
-source $OMARCHY_INSTALL/development/ruby.sh
+# source $OMARCHY_INSTALL/development/nvim.sh
+# source $OMARCHY_INSTALL/development/ruby.sh
 source $OMARCHY_INSTALL/development/docker.sh
 source $OMARCHY_INSTALL/development/firewall.sh
 
