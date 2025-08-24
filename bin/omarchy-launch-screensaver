@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Exit early if screensave is already running
-pgrep -f "alacritty --class Screensaver" && exit 0
+pgrep -f "kitty --class Screensaver" && exit 0
 
 # Allow screensaver to be turned off but also force started
 if [[ -f ~/.local/state/omarchy/toggles/screensaver-off ]] && [[ $1 != "force" ]]; then
@@ -13,8 +13,8 @@ focused=$(hyprctl monitors -j | jq -r '.[] | select(.focused == true).name')
 for m in $(hyprctl monitors -j | jq -r '.[] | .name'); do
   hyprctl dispatch focusmonitor $m
   hyprctl dispatch exec -- \
-    alacritty --class Screensaver \
-    --config-file ~/.local/share/omarchy/default/alacritty/screensaver.toml \
+    kitty --class Screensaver \
+    --config ~/.local/share/omarchy/default/kitty/screensaver.conf \
     -e omarchy-cmd-screensaver
 done
 

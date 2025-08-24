@@ -22,16 +22,16 @@ menu() {
 }
 
 terminal() {
-  alacritty --class Omarchy -e "$@"
+  kitty --class Omarchy -e "$@"
 }
 
 present_terminal() {
-  alacritty --class Omarchy -e bash -c "omarchy-show-logo; eval \"$1\"; omarchy-show-done;"
+  kitty --class Omarchy -e bash -c "omarchy-show-logo; eval \"$1\"; omarchy-show-done;"
 }
 
 edit_in_nvim() {
   notify-send "Editing config file" "$1"
-  alacritty -e nvim "$1"
+  kitty -e nvim "$1"
 }
 
 install() {
@@ -130,10 +130,10 @@ show_setup_menu() {
   options="$options\n󰱔  DNS\n  Config\n󰈷  Fingerprint\n  Fido2"
 
   case $(menu "Setup" "$options") in
-  *Audio*) alacritty --class=Wiremix -e wiremix ;;
+  *Audio*) kitty --class=Wiremix -e wiremix ;;
   *Wifi*)
     rfkill unblock wifi
-    alacritty --class=Impala -e impala
+    kitty --class=Impala -e impala
     ;;
   *Bluetooth*)
     rfkill unblock bluetooth

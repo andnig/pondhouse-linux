@@ -7,4 +7,4 @@ sudo pacman -S --noconfirm --needed \
   man tldr less whois plocate \
   starship bash-completion \
   gum \
-  alacritty
+  kitty

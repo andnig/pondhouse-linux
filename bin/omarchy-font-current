@@ -1,3 +1,3 @@
 #!/bin/bash
 
-grep -oP 'family\s*=\s*"\K[^"]+' ~/.config/alacritty/alacritty.toml | head -n1
+grep -oP '^font_family\s+\K.*' ~/.config/kitty/kitty.conf | sed 's/^\s*//'
