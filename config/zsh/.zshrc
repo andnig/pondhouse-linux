@@ -160,6 +160,8 @@ alias ....='cd ../../..'
 # Find packages without leaving the terminal
 alias yayf="yay -Slq | fzf --multi --preview 'yay -Sii {1}' --preview-window=down:75% | xargs -ro yay -S"
 
+alias locate="plocate"
+
 function ntfy() {
     echo "Sending notification with message: $1"
     curl -d $1 "https://ntfy.devopsandmore.com/devops_notify"
@@ -190,6 +192,10 @@ case ":$PATH:" in
   *) export PATH="$PNPM_HOME:$PATH" ;;
 esac
 # pnpm end
+
+if command -v mise &> /dev/null; then
+  eval "$(mise activate zsh)"
+fi
 
 eval "$(starship init zsh)"
 source <(kubectl completion zsh)
@@ -244,7 +250,6 @@ export PATH="$PATH:~/.dotnet/tools"
 # Dotnet tools end
 
 eval "$(zoxide init --cmd cd zsh)"
-eval $(thefuck --alias)
 
 bindkey -s ^s "tmux-sessionizer.sh\n"
 bindkey -s ^f "tmux-windowizer.sh\n"

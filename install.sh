@@ -62,6 +62,11 @@ source $OMARCHY_INSTALL/apps/tuis.sh
 source $OMARCHY_INSTALL/apps/xtras.sh
 source $OMARCHY_INSTALL/apps/mimetypes.sh
 
+# Custom
+source $OMARCHY_INSTALL/custom/pacman.sh
+source $OMARCHY_INSTALL/custom/yay.sh
+source $OMARCHY_INSTALL/custom/node-npm.sh
+
 # Updates
 sudo updatedb
 

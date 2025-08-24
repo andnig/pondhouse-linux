@@ -12,6 +12,8 @@ sudo pacman -S --needed --noconfirm \
   zsh-syntax-highlighting \
   zsh-completions
 
+yay -S --needed --noconfirm zsh-vi-mode
+
 echo "Setting up custom zsh plugins directory..."
 
 # Ensure custom zsh plugins directory exists
