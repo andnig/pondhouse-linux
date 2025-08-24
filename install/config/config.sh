@@ -4,9 +4,11 @@
 mkdir -p ~/.config
 
 # cp -R ~/.local/share/omarchy/config/* ~/.config/
-# Use stow instead of cp to allow symlinked updates
+# Use ln instead of cp to allow symlinked updates
 for dir in ~/.local/share/omarchy/config/*; do
   dirname=$(basename "$dir")
+  #   This doesn't work because stow creates a subdirectory
+  #   stow -d ~/.local/share/omarchy/config -t $HOME/.config -R "$(basename "$dir")"
   ln -sfn "$HOME/.local/share/omarchy/config/$dirname" "$HOME/.config/$dirname"
 done
 
