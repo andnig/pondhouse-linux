@@ -1,5 +1,8 @@
 #!/bin/bash
 
+echo "Refreshing Omarchy config file..."
+echo "We use stow for config file management, so all the files are automatically up to date"
+
 # This script deploys ~/.local/share/omarchy/config/X/Y/Z -> ~/.config/X/Y/Z
 config_file=$1
 
