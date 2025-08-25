@@ -22,6 +22,12 @@ source $OMARCHY_INSTALL/packaging/fonts.sh
 source $OMARCHY_INSTALL/packaging/webapps.sh
 source $OMARCHY_INSTALL/packaging/tuis.sh
 
+# Custom
+source $OMARCHY_INSTALL/custom/pacman.sh
+source $OMARCHY_INSTALL/custom/yay.sh
+source $OMARCHY_INSTALL/custom/node-npm.sh
+source $OMARCHY_INSTALL/custom/home.sh
+
 # Configuration
 source $OMARCHY_INSTALL/config/config.sh
 source $OMARCHY_INSTALL/config/zsh.sh
@@ -49,12 +55,6 @@ source $OMARCHY_INSTALL/config/hardware/nvidia.sh
 source $OMARCHY_INSTALL/login/plymouth.sh
 source $OMARCHY_INSTALL/login/limine-snapper.sh
 source $OMARCHY_INSTALL/login/alt-bootloaders.sh
-
-# Custom
-source $OMARCHY_INSTALL/custom/pacman.sh
-source $OMARCHY_INSTALL/custom/yay.sh
-source $OMARCHY_INSTALL/custom/node-npm.sh
-source $OMARCHY_INSTALL/custom/home.sh
 
 # Updates
 sudo updatedb
