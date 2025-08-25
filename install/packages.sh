@@ -98,7 +98,6 @@ sudo pacman -S --noconfirm --needed \
   ttf-font-awesome \
   ttf-ia-writer \
   ttf-jetbrains-mono \
-  typora \
   tzupdate \
   ufw \
   ufw-docker \
