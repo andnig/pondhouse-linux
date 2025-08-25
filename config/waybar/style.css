@@ -30,6 +30,10 @@
   opacity: 0.5;
 }
 
+#workspaces button.active {
+  color: @activec;
+}
+
 #tray,
 #cpu,
 #battery,
