@@ -19,7 +19,6 @@ source $OMARCHY_INSTALL/preflight/first-run-mode.sh
 source $OMARCHY_INSTALL/packages.sh
 source $OMARCHY_INSTALL/packaging/asdcontrol.sh
 source $OMARCHY_INSTALL/packaging/fonts.sh
-source $OMARCHY_INSTALL/packaging/lazyvim.sh
 source $OMARCHY_INSTALL/packaging/webapps.sh
 source $OMARCHY_INSTALL/packaging/tuis.sh
 
@@ -37,7 +36,6 @@ source $OMARCHY_INSTALL/config/increase-lockout-limit.sh
 source $OMARCHY_INSTALL/config/ssh-flakiness.sh
 source $OMARCHY_INSTALL/config/detect-keyboard-layout.sh
 source $OMARCHY_INSTALL/config/xcompose.sh
-source $OMARCHY_INSTALL/config/mise-ruby.sh
 source $OMARCHY_INSTALL/config/docker.sh
 source $OMARCHY_INSTALL/config/mimetypes.sh
 source $OMARCHY_INSTALL/config/hardware/network.sh
