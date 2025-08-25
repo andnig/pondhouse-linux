@@ -83,8 +83,8 @@ for package in "${packages[@]}"; do
 
   # Add a small delay between packages to avoid rate limiting
   if [ "$package" != "${packages[-1]}" ]; then
-    echo "  Waiting 2 seconds before next package..."
-    sleep 2
+    echo "  Waiting 5 seconds before next package..."
+    sleep 5
   fi
   echo "----------------------------------------"
 done
