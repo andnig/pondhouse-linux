@@ -10,4 +10,5 @@ yay -S --needed \
   clipse-bin \
   zen-browser-bin \
   ttf-ms-win11-auto \
-  stripe-cli
+  stripe-cli \
+  sunshine

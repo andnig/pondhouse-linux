@@ -30,13 +30,11 @@ sudo pacman -S --noconfirm --needed \
   python-setuptools \
   seahorse \
   stow \
-  sunshine \
   swappy \
   syncthing \
   tailscale \
   thunderbird \
   tmux \
-  treesitter-cli \
   uv \
   wget \
   yazi \
