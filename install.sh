@@ -54,7 +54,6 @@ source $OMARCHY_INSTALL/login/alt-bootloaders.sh
 source $OMARCHY_INSTALL/apps/webapps.sh
 source $OMARCHY_INSTALL/apps/tuis.sh
 source $OMARCHY_INSTALL/apps/mimetypes.sh
-source $OMARCHY_INSTALL/apps/xtras.sh
 
 # Custom
 source $OMARCHY_INSTALL/custom/pacman.sh
