@@ -26,7 +26,6 @@ source $OMARCHY_INSTALL/packaging/tuis.sh
 source $OMARCHY_INSTALL/config/config.sh
 source $OMARCHY_INSTALL/config/zsh.sh
 source $OMARCHY_INSTALL/config/theme.sh
-source $OMARCHY_INSTALL/config/zsh.sh
 source $OMARCHY_INSTALL/config/branding.sh
 source $OMARCHY_INSTALL/config/git.sh
 source $OMARCHY_INSTALL/config/gpg.sh
