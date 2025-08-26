@@ -31,7 +31,7 @@ stow -d ~/.local/share/omarchy/config -t $HOME zsh
 
 # Set zsh as default shell for current user
 echo "Setting zsh as default shell..."
-chsh -s /usr/bin/zsh
+sudo usermod -s /usr/bin/zsh "$USER"
 
 echo "zsh installation complete!"
 echo "Default shell changed to zsh. Please log out and back in for the change to take effect."
