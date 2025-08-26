@@ -14,6 +14,9 @@ echo "Node version: $(node --version)"
 echo "NPM version: $(npm --version)"
 
 echo "Installing global npm packages..."
+mkdir -p ~/.npm-global/lib
+npm config set prefix ~/.npm-global
+export PATH=~/.npm-global/bin:$PATH
 
 # Install eslint
 echo "Installing eslint..."
