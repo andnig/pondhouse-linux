@@ -256,3 +256,6 @@ bindkey -s ^f "tmux-windowizer.sh\n"
 bindkey -s ^w "tmux-windowizer.sh\n"
 
 eval "$(uv generate-shell-completion zsh)"
+
+# For QEMU/KVM libvirt
+export LIBVIRT_DEFAULT_URI='qemu:///system'

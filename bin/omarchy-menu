@@ -195,6 +195,7 @@ show_install_menu() {
   *Editor*) show_install_editor_menu ;;
   *AI*) show_install_ai_menu ;;
   *Gaming*) show_install_gaming_menu ;;
+  *Windows*) show_install_windows_menu ;;
   *) show_main_menu ;;
   esac
 }
@@ -226,6 +227,13 @@ show_install_ai_menu() {
   *Ollama*) install "Ollama" "ollama" ;;
   *Crush*) aur_install "Crush" "crush-bin" ;;
   *opencode*) aur_install "opencode" "opencode-bin" ;;
+  *) show_install_menu ;;
+  esac
+}
+
+show_install_windows_menu() {
+  case $(menu "Install" "󰍳  Windows 11 VM") in
+  *Windows*) present_terminal omarchy-install-virt-windows ;;
   *) show_install_menu ;;
   esac
 }

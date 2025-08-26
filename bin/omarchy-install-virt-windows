@@ -1,0 +1,45 @@
+#!/bin/bash
+
+if ! command -v quickemu &>/dev/null; then
+  yay -Sy quickemu
+fi
+
+# Use quickget to get the win11 image
+cd $HOME
+# Check if there is already a file windows-11.conf
+if [[ -f windows-11.conf ]]; then
+  echo "windows-11.conf already exists, assuming the VM is already set up."
+  quickemu --vm windows-11.conf --display spice
+  exit 0
+fi
+
+# Check if there is already a directory windows-11 with a virtio iso and windows 11 iso (Win11*.iso)
+if [[ -d windows-11 && -f windows-11/virtio-win.iso ]] && ls windows-11/Win11*.iso >/dev/null 2>&1; then
+  echo "windows-11 directory with virtio iso and windows 11 iso already exists, skipping download."
+else
+  quickget windows 11
+  # Fix the virtio iso by removing unnecessary drivers
+  VM_PATH="$HOME/windows-11"
+  echo "Fixing virtio iso"
+  mkdir -p "${VM_PATH}/virtio-cd"
+  7z x "${VM_PATH}/virtio-win.iso" -o"${VM_PATH}/virtio-cd" -bso0 -bsp0
+  [[ -d "${VM_PATH}/virtio-cd" && "$(ls -A "${VM_PATH}/virtio-cd")" ]] || {
+    echo "Error: Extraction of virtio-cd failed!"
+    exit 1
+  }
+
+  pushd "${VM_PATH}/virtio-cd"
+  find . -mindepth 1 -maxdepth 1 ! -name "NetKVM" ! -name "vioscsi" ! -name "viostor" ! -name "*.msi" ! -name "*.exe" -exec rm -rf {} +
+  popd
+  rm -rf "${VM_PATH}/virtio-win.iso"
+  mkisofs -quiet -o "${VM_PATH}/virtio-win.iso" -V "fixed-cd" -J -R "${VM_PATH}/virtio-cd"
+fi
+
+# Create the VM
+echo "cpu_cores=\"8\"" >>windows-11.conf
+echo "ram=\"16G\"" >>windows-11.conf
+
+quickemu --vm windows-11.conf --display spice
+
+echo "For information on how to optimize the VM, see this: https://sysguides.com/install-a-windows-11-virtual-machine-on-kvm"
+echo "Inside the VM, install the spice guest tools from the CD ROM drive."

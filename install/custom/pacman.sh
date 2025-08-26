@@ -38,4 +38,5 @@ sudo pacman -S --noconfirm --needed \
   uv \
   wget \
   yazi \
-  yq
+  yq \
+  7zip
