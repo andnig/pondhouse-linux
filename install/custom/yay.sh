@@ -5,6 +5,7 @@ packages=(
   "google-cloud-cli"
   "google-cloud-cli-bq"
   "google-cloud-cli-component-gke-gcloud-auth-plugin"
+  "tlrc"
   "fpp"
   "infisical-bin"
   "clipse-bin"
@@ -12,7 +13,6 @@ packages=(
   "stripe-cli"
   "sunshine"
   "ttf-ms-win11-auto"
-  "tlrc"
 )
 
 # Configuration
