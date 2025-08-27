@@ -20,6 +20,8 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
+yay -Sy --noconfirm
+
 # Function to install package from AUR repository directly
 install_from_aur_repo() {
   local package="$1"
