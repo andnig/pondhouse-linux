@@ -25,6 +25,40 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
+# Function to install package from AUR repository directly
+install_from_aur_repo() {
+  local package="$1"
+  local tmpdir="/tmp/aur-install-$$"
+  
+  echo -e "${YELLOW}  Attempting fallback: Installing $package directly from AUR repository${NC}"
+  
+  # Create temporary directory
+  mkdir -p "$tmpdir"
+  cd "$tmpdir" || return 1
+  
+  # Clone the package from AUR repository
+  if git clone --branch "$package" --single-branch https://github.com/archlinux/aur.git "$package" 2>/dev/null; then
+    cd "$package" || return 1
+    
+    # Build and install the package
+    if makepkg -si --noconfirm 2>&1; then
+      echo -e "${GREEN}  ✓ Successfully installed $package from AUR repository${NC}"
+      cd /
+      rm -rf "$tmpdir"
+      return 0
+    else
+      echo -e "${RED}  Failed to build/install $package from AUR repository${NC}"
+    fi
+  else
+    echo -e "${RED}  Failed to clone $package from AUR repository${NC}"
+  fi
+  
+  # Cleanup
+  cd /
+  rm -rf "$tmpdir"
+  return 1
+}
+
 # Function to install a single package with retry logic
 install_package() {
   local package="$1"
@@ -61,6 +95,12 @@ install_package() {
   done
 
   echo -e "${RED}  ✗ Failed to install $package after $MAX_RETRIES attempts${NC}"
+  
+  # Try fallback installation from AUR repository
+  if install_from_aur_repo "$package"; then
+    return 0
+  fi
+  
   return 1
 }
 
