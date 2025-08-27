@@ -1,0 +1,8 @@
+#!/usr/bin/env xdg-open
+[Desktop Entry]
+Version=1.0
+Terminal=false
+Type=Application
+Name=Microsoft Teams DevOps
+Exec=chromium --user-data-dir="/home/andreas/.config/chromium" --profile-directory="Profile 2" --app="https://teams.microsoft.com"
+Icon=teams
