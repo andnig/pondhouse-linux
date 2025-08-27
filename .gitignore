@@ -1,0 +1,10 @@
+# Ignore the entire config/chromium directory
+config/chromium/
+!config/chromium/Default/preferences
+
+config/fcitx5/
+!config/fcitx5/conf/xcb.conf
+
+config/btop/themes/
+
+config/nvim/lua/plugins/theme.lua

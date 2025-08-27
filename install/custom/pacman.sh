@@ -40,3 +40,6 @@ sudo pacman -S --noconfirm --needed \
   yazi \
   yq \
   7zip
+
+echo "Installing tpm (tmux plugin manager)"
+git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm
