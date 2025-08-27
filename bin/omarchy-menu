@@ -184,7 +184,7 @@ show_setup_config_menu() {
 }
 
 show_install_menu() {
-  case $(menu "Install" "󰣇  Package\n󰣇  AUR\n  Web App\n  TUI\n  Service\n  Style\n󰵮  Development\n  Editor\n󱚤  AI\n  Gaming") in
+  case $(menu "Install" "󰣇  Package\n󰣇  AUR\n  Web App\n  TUI\n  Service\n  Style\n󰵮  Development\n  Editor\n󱚤  AI\n  Gaming\n󰨡  Windows") in
   *Package*) terminal omarchy-pkg-install ;;
   *AUR*) terminal omarchy-pkg-aur-install ;;
   *Web*) present_terminal omarchy-webapp-install ;;
@@ -232,7 +232,7 @@ show_install_ai_menu() {
 }
 
 show_install_windows_menu() {
-  case $(menu "Install" "󰍳  Windows 11 VM") in
+  case $(menu "Install" "󰨡  Windows 11 VM") in
   *Windows*) present_terminal omarchy-install-virt-windows ;;
   *) show_install_menu ;;
   esac

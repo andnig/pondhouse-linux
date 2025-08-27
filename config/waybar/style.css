@@ -2,7 +2,6 @@
 
 * {
   background-color: @background;
-  color: @foreground;
 
   border: none;
   border-radius: 0;
