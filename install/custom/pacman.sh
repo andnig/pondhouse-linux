@@ -1,6 +1,6 @@
 #!/bin/bash
 
-sudo pacman -S --noconfirm --needed --clean \
+sudo pacman -S --noconfirm --needed \
   base-devel \
   ca-certificates \
   cmake \
