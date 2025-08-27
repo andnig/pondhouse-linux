@@ -233,7 +233,7 @@ show_install_ai_menu() {
 
 show_install_windows_menu() {
   case $(menu "Install" "󰨡  Windows 11 VM") in
-  *Windows*) present_terminal omarchy-install-virt-windows ;;
+  *Windows*) omarchy-launch-tiling-terminal-with-presentation omarchy-install-virt-windows ;;
   *) show_install_menu ;;
   esac
 }

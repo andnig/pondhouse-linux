@@ -40,6 +40,8 @@ echo "cpu_cores=\"8\"" >>windows-11.conf
 echo "ram=\"16G\"" >>windows-11.conf
 
 quickemu --vm windows-11.conf --display spice
+omarchy-tui-install "Windows 11" "quickemu --vm $HOME/windows-11.conf --display spice" tile https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/windows-11.png
 
 echo "For information on how to optimize the VM, see this: https://sysguides.com/install-a-windows-11-virtual-machine-on-kvm"
 echo "Inside the VM, install the spice guest tools from the CD ROM drive."
+echo "You can run the virtual machine by executing the Windows 11 TUI application from the app launcher, or by running 'quickemu --vm $HOME/windows-11.conf --display spice' from the terminal."
