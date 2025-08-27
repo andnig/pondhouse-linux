@@ -24,7 +24,7 @@ source $OMARCHY_INSTALL/packaging/tuis.sh
 
 # Custom
 source $OMARCHY_INSTALL/custom/pacman.sh
-source $OMARCHY_INSTALL/custom/yay.sh
+source $OMARCHY_INSTALL/custom/yay.sh || echo "Warning: yay.sh encountered issues but continuing installation"
 source $OMARCHY_INSTALL/custom/node-npm.sh
 source $OMARCHY_INSTALL/custom/home.sh
 

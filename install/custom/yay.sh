@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Don't exit on error - handle failures gracefully
+set +e
+
 # Array of packages to install
 packages=(
   "tlrc-bin"
@@ -143,7 +146,9 @@ if [ ${#failed_packages[@]} -gt 0 ]; then
   done
 fi
 
-# Always exit with 0 to prevent parent script from failing
+# Script completed successfully
 echo
-echo "Script completed. Exiting with success code (0) regardless of installation results."
-exit 0
+echo "Script completed. Continuing with installation..."
+
+# Restore error handling for parent script
+set -e
