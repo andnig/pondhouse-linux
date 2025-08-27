@@ -1,0 +1,4 @@
+#!/bin/bash
+
+cmd="$*"
+setsid kitty --class Omarchy -e bash -c "omarchy-show-logo; $cmd; omarchy-show-done"
