@@ -8,3 +8,5 @@ config/fcitx5/
 config/btop/themes/
 
 config/nvim/lua/plugins/theme.lua
+
+config/ssh/.ssh/known_hosts*
