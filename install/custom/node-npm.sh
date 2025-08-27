@@ -14,9 +14,11 @@ echo "Node version: $(node --version)"
 echo "NPM version: $(npm --version)"
 
 echo "Installing global npm packages..."
-mkdir -p ~/.npm-global/lib
-npm config set prefix ~/.npm-global
-export PATH=~/.npm-global/bin:$PATH
+mkdir -p $HOME/.npm-global/lib
+export PATH=$HOME/.npm-global/bin:$PATH
+export PATH=$HOME/.local/share/mise/installs/node/latest/bin:$PATH
+
+npm config set prefix $HOME/.npm-global
 
 # Install eslint
 echo "Installing eslint..."
