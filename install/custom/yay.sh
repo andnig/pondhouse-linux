@@ -2,18 +2,17 @@
 
 # Array of packages to install
 packages=(
-  "google-cloud-cli"
-  "google-cloud-cli-bq"
-  "google-cloud-cli-component-gke-gcloud-auth-plugin"
-  "tlrc"
-  "fpp"
+  "tlrc-bin"
   "infisical-bin"
   "clipse-bin"
   "zen-browser-bin"
-  "stripe-cli"
-  "sunshine"
-  "ttf-ms-win11-auto"
+  "stripe-cli-bin"
+  "sunshine-bin"
 )
+
+# Configuration
+MAX_RETRIES=5
+RETRY_DELAY=20
 
 # Colors for output
 RED='\033[0;31m'
@@ -21,52 +20,90 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-# Function to install a single package from GitHub AUR repository
-install_package() {
+# Function to install package from AUR repository directly
+install_from_aur_repo() {
   local package="$1"
-  local tmpdir="/tmp/aur-install-$$-$package"
-  
-  echo -e "${YELLOW}Installing package: $package${NC}"
-  
+  local tmpdir="/tmp/aur-install-$$"
+
+  echo -e "${YELLOW}  Attempting fallback: Installing $package directly from AUR repository${NC}"
+
   # Create temporary directory
   mkdir -p "$tmpdir"
-  cd "$tmpdir" || {
-    echo -e "${RED}  Failed to create temporary directory${NC}"
-    rm -rf "$tmpdir"
-    return 1
-  }
-  
+  cd "$tmpdir" || return 1
+
   # Clone the package from AUR repository
   if git clone --branch "$package" --single-branch https://github.com/archlinux/aur.git "$package" 2>/dev/null; then
-    cd "$package" || {
-      echo -e "${RED}  Failed to enter package directory${NC}"
-      cd /
-      rm -rf "$tmpdir"
-      return 1
-    }
-    
+    cd "$package" || return 1
+
     # Build and install the package
     if makepkg -si --noconfirm 2>&1; then
-      echo -e "${GREEN}  ✓ Successfully installed $package${NC}"
+      echo -e "${GREEN}  ✓ Successfully installed $package from AUR repository${NC}"
       cd /
       rm -rf "$tmpdir"
       return 0
     else
-      echo -e "${RED}  Failed to build/install $package${NC}"
+      echo -e "${RED}  Failed to build/install $package from AUR repository${NC}"
     fi
   else
-    echo -e "${RED}  Failed to clone $package from GitHub AUR repository${NC}"
+    echo -e "${RED}  Failed to clone $package from AUR repository${NC}"
   fi
-  
+
   # Cleanup
   cd /
   rm -rf "$tmpdir"
   return 1
 }
 
+# Function to install a single package with retry logic
+install_package() {
+  local package="$1"
+  local attempt=1
+
+  echo -e "${YELLOW}Installing package: $package${NC}"
+
+  while [ $attempt -le $MAX_RETRIES ]; do
+    echo "  Attempt $attempt of $MAX_RETRIES..."
+
+    # Run yay and capture output and exit code
+    output=$(yay -S --needed --noconfirm "$package" 2>&1)
+    exit_code=$?
+
+    if [ $exit_code -eq 0 ]; then
+      echo -e "${GREEN}  ✓ Successfully installed: $package${NC}"
+      return 0
+    fi
+
+    # Check if the error is rate limiting (429)
+    if echo "$output" | grep -q "429\|rate limit\|Too Many Requests"; then
+      echo -e "${YELLOW}  Rate limit detected (429). Waiting ${RETRY_DELAY} seconds before retry...${NC}"
+      sleep $RETRY_DELAY
+    else
+      # For other errors, still wait but with a shorter delay
+      echo -e "${RED}  Failed to install $package (exit code: $exit_code)${NC}"
+      if [ $attempt -lt $MAX_RETRIES ]; then
+        echo "  Waiting 5 seconds before retry..."
+        sleep 5
+      fi
+    fi
+
+    attempt=$((attempt + 1))
+  done
+
+  echo -e "${RED}  ✗ Failed to install $package after $MAX_RETRIES attempts${NC}"
+
+  # Try fallback installation from AUR repository
+  if install_from_aur_repo "$package"; then
+    return 0
+  fi
+
+  return 1
+}
+
 # Main execution
-echo "Starting AUR package installation from GitHub..."
+echo "Starting AUR package installation..."
 echo "Packages to install: ${#packages[@]}"
+echo "Max retries per package: $MAX_RETRIES"
+echo "Rate limit retry delay: ${RETRY_DELAY}s"
 echo "----------------------------------------"
 
 failed_packages=()
@@ -77,7 +114,12 @@ for package in "${packages[@]}"; do
     successful_packages+=("$package")
   else
     failed_packages+=("$package")
-    echo -e "${YELLOW}  Skipping failed package and continuing...${NC}"
+  fi
+
+  # Add a small delay between packages to avoid rate limiting
+  if [ "$package" != "${packages[-1]}" ]; then
+    echo "  Waiting 5 seconds before next package..."
+    sleep 5
   fi
   echo "----------------------------------------"
 done
