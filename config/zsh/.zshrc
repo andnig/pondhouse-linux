@@ -216,7 +216,7 @@ if ! op account list &> /dev/null; then
 fi
 
 # n version manager
-export PATH="$HOME/.local/.npm-global/bin:$PATH"
+export PATH="$HOME/.npm-global/bin:$PATH"
 export PATH="$HOME/.local/n/bin:$PATH"
 export N_PREFIX="$HOME/.local/n"
 

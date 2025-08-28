@@ -62,9 +62,6 @@ source $OMARCHY_INSTALL/login/alt-bootloaders.sh
 source $OMARCHY_INSTALL/custom/mimetypes.sh
 source $OMARCHY_INSTALL/custom/misc.sh
 
-# Pin bad packages
-sudo pacman -U --noconfirm https://pkgs.omarchy.org/x86_64/abseil-cpp-20250512.1-1-x86_64.pkg.tar.zst
-
 # Reboot
 clear
 tte -i ~/.local/share/omarchy/logo.txt --frame-rate 920 laseretch

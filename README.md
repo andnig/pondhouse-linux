@@ -106,6 +106,7 @@ sudo howdy test
 
 ## Sunshine
 
+0. Start sunshine service with `systemctl --user enable --now sunshine.service`
 1. On first login to sunshine, create the username/password
 2. Copy this to `~/.config/sunshine/sunshine.conf`
 
@@ -193,6 +194,8 @@ chromium --profile-directory="Profile 4"
 ```
 
 ## Syncthing
+
+Start syncthing with `systemctl enable --now syncthing@andreas`
 
 Open syncthing in your Pixel 6 and the web interface of the new computer on localhost:8384.
 On Pixel 6, add the new device - when asked for confirmation on the new device

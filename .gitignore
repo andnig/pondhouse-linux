@@ -11,3 +11,7 @@ config/nvim/lua/plugins/theme.lua
 
 config/ssh/.ssh/known_hosts*
 config/walker/themes/
+
+config/systemd/
+config/sunshine/
+!config/sunshine/sunshine.conf
