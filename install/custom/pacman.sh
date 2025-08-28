@@ -39,7 +39,8 @@ sudo pacman -S --noconfirm --needed \
   wget \
   yazi \
   yq \
-  7zip
+  7zip \
+  ntfs-3g
 
 echo "Installing tpm (tmux plugin manager)"
 rm -rf ~/.tmux/plugins/tpm
