@@ -5,7 +5,7 @@
   "spacing": 0,
   "height": 26,
   "modules-left": ["custom/omarchy", "hyprland/workspaces"],
-  "modules-center": ["clock", "custom/update"],
+  "modules-center": ["clock", "custom/calendar", "custom/update"],
   "modules-right": [
     "group/tray-expander",
     "bluetooth",
@@ -55,10 +55,16 @@
     "format": "󰍛",
     "on-click": "kitty -e btop",
   },
+  "custom/calendar": {
+    "format": "󰃰",
+    "on-click": "kitty --class=Calcure -e calcure",
+  },
+
   "clock": {
-    "format": "{:%A %H:%M}",
+    "format": "{:%A %H:%M - %d.%B %Y CW%V}",
     "format-alt": "{:%d %B W%V %Y}",
-    "tooltip": false,
+    "tooltip": true,
+    "tooltip-format": "<big>{:%Y %B \t week: %V }</big>\n<tt>{calendar}</tt>",
     "on-click-right": "omarchy-cmd-tzupdate",
   },
   "network": {
