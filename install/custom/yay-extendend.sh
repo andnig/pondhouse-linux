@@ -6,6 +6,7 @@ packages=(
   "google-cloud-cli-bq"
   "google-cloud-cli-component-gke-gcloud-auth-plugin"
   "fpp"
+  "calcure"
   "ttf-ms-win11-auto"
 )
 
