@@ -205,6 +205,13 @@ Add the shared folders on Pixel 6 as normal.
 (If the web ui cant be reached, look at `systemctl status syncthing@andreas` for
 info on which port the ui runs).
 
+## Google docker
+
+```bash
+gcloud init
+gcloud auth configure-docker europe-west3-docker.pkg.dev
+```
+
 ## License
 
 Omarchy is released under the [MIT License](https://opensource.org/licenses/MIT).
