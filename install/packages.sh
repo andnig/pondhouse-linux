@@ -95,7 +95,8 @@ sudo pacman -S --noconfirm --needed \
   tldr \
   tree-sitter-cli \
   ttf-cascadia-mono-nerd \
-  ttf-jetbrains-mono \
+  ttf-ia-writer \
+  ttf-jetbrains-mono-nerd \
   tzupdate \
   ufw \
   ufw-docker \
