@@ -389,7 +389,7 @@ go_to_menu() {
   *install*) show_install_menu ;;
   *remove*) show_remove_menu ;;
   *update*) show_update_menu ;;
-  *about*) alacritty --class Omarchy -o font.size=9 -e bash -c 'fastfetch; read -n 1 -s' ;;
+  *about*) kitty --class Omarchy -o font_size=11 -e bash -c 'fastfetch; read -n 1 -s' ;;
   *system*) show_system_menu ;;
   esac
 }
