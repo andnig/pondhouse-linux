@@ -68,6 +68,13 @@ tte -i ~/.local/share/omarchy/logo.txt --frame-rate 920 laseretch
 echo
 echo "You're done! So we're ready to reboot now..." | tte --frame-rate 640 wipe
 
+# Make this green
+
+GREEN='\033[0;32m'
+NC='\033[0m'
+
+echo -e "\n${GREEN}  ✓ All done! Please remember to run ~/.local/share/omarchy/install/custom/yay-extendend.sh after first booting your system. ${NC}\n"
+
 if sudo test -f /etc/sudoers.d/99-omarchy-installer; then
   sudo rm -f /etc/sudoers.d/99-omarchy-installer &>/dev/null
   echo -e "\nRemember to remove USB installer!\n\n"
