@@ -212,6 +212,43 @@ gcloud init
 gcloud auth configure-docker europe-west3-docker.pkg.dev
 ```
 
+## NVIDIA undervolting
+
+To undervolt your NVIDIA GPU:
+
+1. Download the latest release here: `https://github.com/Dreaming-Codes/nvidia_oc`
+2. Move it to /user/local/bin and make it executable
+3. Create a systemd service file at `/etc/systemd/system/nvidia-oc.service` with the following content:
+
+   ```ini
+   [Unit]
+   Description=NVIDIA Overclocking Service
+   After=network.target
+
+   [Service]
+   ExecStart=/usr/local/bin/nvidia_oc set --index 0 --power-limit 250000 --freq-offset 255 --mem-offset 850 --min-clock 210 --max-clock 2745
+   User=root
+   Restart=on-failure
+
+   [Install]
+   WantedBy=multi-user.target
+   ```
+
+   These files are for a NVIDIA 4080.
+
+   This will set the power limit 250W, GPU clock offset +255MHz, memory clock offset +850MHz, minimum clock 210MHz, maximum clock 2745MHz.
+   - GPU clock offset means: The GPU will run the clock speed of eg. 1600MHz at voltage levels that would normally be used for 1855MHz. So it will be more efficient.
+   - Minimum clock: This is the idle clock. Use `nvidia-smi` to find the default minimum idle clock.
+   - Maximum clock: This is the maximum boost clock. Run your most advanced workload, then use `nvidia-smi` to find the maximum clock it reached.
+
+4. Enable and start the service:
+
+   ```bash
+   sudo systemctl enable --now nvidia-oc.service
+   ```
+
+> **Note:** To test out different settings and compare them to default, you can manually run the command from `ExecStart` in a terminal.
+
 ## License
 
 Omarchy is released under the [MIT License](https://opensource.org/licenses/MIT).
