@@ -1,0 +1,3 @@
+#!/bin/bash
+
+$HOME/.local/share/omarchy/install/custom/postinstall.sh

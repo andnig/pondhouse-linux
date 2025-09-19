@@ -224,9 +224,10 @@ show_setup_config_menu() {
 }
 
 show_setup_security_menu() {
-  case $(menu "Setup" "󰈷  Fingerprint\n  Fido2") in
+  case $(menu "Setup" "󰈷  Fingerprint\n  Fido2\n   Postinstall") in
   *Fingerprint*) present_terminal omarchy-setup-fingerprint ;;
   *Fido2*) present_terminal omarchy-setup-fido2 ;;
+  *Postinstall*) present_terminal omarchy-pondhouse-postinstall ;;
   *) show_setup_menu ;;
   esac
 }
