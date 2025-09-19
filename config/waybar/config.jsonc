@@ -63,7 +63,7 @@
 
   "clock": {
     "format": "{:%A %H:%M - %d.%B %Y CW%V}",
-    "format-alt": "{:%d %B W%V %Y}",
+    "format-alt": "{:L%d %B W%V %Y}",
     "tooltip": true,
     "tooltip-format": "<big>{:%Y %B \t week: %V }</big>\n<tt>{calendar}</tt>",
     "on-click-right": "omarchy-cmd-tzupdate",
