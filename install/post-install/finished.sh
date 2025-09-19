@@ -26,6 +26,10 @@ if sudo test -f /etc/sudoers.d/99-omarchy-installer; then
   echo_in_style "Remember to remove USB installer!"
 fi
 
+echo
+echo "\e[32mAfter starting your system, open the Menu and select Setup -> Postinstall to finish setup\e[0m"
+echo
+
 # Exit gracefully if user chooses not to reboot
 if gum confirm --padding "0 0 0 $((PADDING_LEFT + 32))" --show-help=false --default --affirmative "Reboot Now" --negative "" ""; then
   # Clear screen to hide any shutdown messages
