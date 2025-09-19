@@ -241,8 +241,9 @@ export DOTNET_ROOT="$(dirname $(which dotnet))"
 
 export BAT_THEME=ansi
 
+# To get the IDs, run: op item list and look for the IDs in the first column
 # export OPENAI_API_KEY=$(op read 'op://personal/fmttrscnldn4rbsgrhvgj6qnae/password')
-# export ANTHROPIC_API_KEY=$(cat ~/.secrets/anthropic.secret)
+# export ANTHROPIC_API_KEY=$(op read 'op://personal/5vsjugsw43b5l5r4ybtxo2l5nm')
 # export GEMINI_API_KEY=$(op read 'op://personal/l63esue26zwv22e75cgnazid2m/password')
 
 # Dotnet tools

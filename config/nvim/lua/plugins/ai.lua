@@ -11,7 +11,7 @@ return {
         },
         dependencies = {
             "nvim-treesitter/nvim-treesitter",
-            "echasnovski/mini.icons",
+            "nvim-mini/mini.icons",
             "stevearc/dressing.nvim",
             "nvim-lua/plenary.nvim",
             "MunifTanjim/nui.nvim",
