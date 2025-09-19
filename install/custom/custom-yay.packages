@@ -3,5 +3,8 @@ python-holidays
 python-jalali-core
 python-jdatetime
 python-taskw-ng
+python-convertdate
+python-korean_lunar_calendar
+python-hijridate
 calcure
 ttf-ms-win11-auto
