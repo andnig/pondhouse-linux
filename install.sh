@@ -1,76 +1,19 @@
 #!/bin/bash
 
 # Exit immediately if a command exits with a non-zero status
-set -eE
+set -eEo pipefail
 
-OMARCHY_PATH="$HOME/.local/share/omarchy"
-OMARCHY_INSTALL="$OMARCHY_PATH/install"
+# Define Omarchy locations
+export OMARCHY_PATH="$HOME/.local/share/omarchy"
+export OMARCHY_INSTALL="$OMARCHY_PATH/install"
+export OMARCHY_INSTALL_LOG_FILE="/var/log/omarchy-install.log"
 export PATH="$OMARCHY_PATH/bin:$PATH"
 
-# Preparation
-source $OMARCHY_INSTALL/preflight/show-env.sh
-source $OMARCHY_INSTALL/preflight/trap-errors.sh
-source $OMARCHY_INSTALL/preflight/guard.sh
-source $OMARCHY_INSTALL/preflight/chroot.sh
-source $OMARCHY_INSTALL/preflight/pacman.sh
-source $OMARCHY_INSTALL/preflight/migrations.sh
-source $OMARCHY_INSTALL/preflight/first-run-mode.sh
-
-# Packaging
-source $OMARCHY_INSTALL/packages.sh
-source $OMARCHY_INSTALL/packaging/fonts.sh
-source $OMARCHY_INSTALL/packaging/webapps.sh
-source $OMARCHY_INSTALL/packaging/tuis.sh
-
-# Custom
-source $OMARCHY_INSTALL/custom/pacman.sh
-source $OMARCHY_INSTALL/custom/yay.sh || echo "Warning: yay.sh encountered issues but continuing installation"
-source $OMARCHY_INSTALL/custom/node-npm.sh
-source $OMARCHY_INSTALL/custom/home.sh
-source $OMARCHY_INSTALL/custom/tuis.sh
-
-# Configuration
-source $OMARCHY_INSTALL/config/config.sh
-source $OMARCHY_INSTALL/config/zsh.sh
-source $OMARCHY_INSTALL/config/theme.sh
-source $OMARCHY_INSTALL/config/branding.sh
-source $OMARCHY_INSTALL/config/git.sh
-source $OMARCHY_INSTALL/config/gpg.sh
-source $OMARCHY_INSTALL/config/timezones.sh
-source $OMARCHY_INSTALL/config/increase-sudo-tries.sh
-source $OMARCHY_INSTALL/config/increase-lockout-limit.sh
-source $OMARCHY_INSTALL/config/ssh-flakiness.sh
-source $OMARCHY_INSTALL/config/detect-keyboard-layout.sh
-source $OMARCHY_INSTALL/config/xcompose.sh
-source $OMARCHY_INSTALL/config/docker.sh
-source $OMARCHY_INSTALL/config/mimetypes.sh
-source $OMARCHY_INSTALL/config/localdb.sh
-source $OMARCHY_INSTALL/config/sudoless-asdcontrol.sh
-source $OMARCHY_INSTALL/config/hardware/network.sh
-source $OMARCHY_INSTALL/config/hardware/set-wireless-regdom.sh
-source $OMARCHY_INSTALL/config/hardware/fix-fkeys.sh
-source $OMARCHY_INSTALL/config/hardware/bluetooth.sh
-source $OMARCHY_INSTALL/config/hardware/printer.sh
-source $OMARCHY_INSTALL/config/hardware/usb-autosuspend.sh
-source $OMARCHY_INSTALL/config/hardware/ignore-power-button.sh
-source $OMARCHY_INSTALL/config/hardware/nvidia.sh
-source $OMARCHY_INSTALL/config/hardware/intel.sh
-source $OMARCHY_INSTALL/config/hardware/fix-f13-amd-audio-input.sh
-
-# Login
-source $OMARCHY_INSTALL/login/plymouth.sh
-source $OMARCHY_INSTALL/login/limine-snapper.sh
-source $OMARCHY_INSTALL/login/alt-bootloaders.sh
-
-# Final touches
-source $OMARCHY_INSTALL/custom/mimetypes.sh
-source $OMARCHY_INSTALL/custom/misc.sh
-
-# Reboot
-GREEN='\033[0;32m'
-NC='\033[0m'
-
-echo -e "\n${GREEN}  ✓ All done! Please remember to run ~/.local/share/omarchy/install/custom/yay-extendend.sh after first booting your system. ${NC}\n"
-
-# Finishing
-source $OMARCHY_INSTALL/reboot.sh
+# Install
+source "$OMARCHY_INSTALL/helpers/all.sh"
+source "$OMARCHY_INSTALL/preflight/all.sh"
+source "$OMARCHY_INSTALL/packaging/all.sh"
+source "$OMARCHY_INSTALL/custom/all.sh"
+source "$OMARCHY_INSTALL/config/all.sh"
+source "$OMARCHY_INSTALL/login/all.sh"
+source "$OMARCHY_INSTALL/post-install/all.sh"

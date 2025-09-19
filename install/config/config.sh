@@ -1,5 +1,3 @@
-#!/bin/bash
-
 # Copy over Omarchy configs
 mkdir -p ~/.config
 
