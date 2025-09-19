@@ -1,1 +1,1 @@
-omarchy-lazyvim-setup
+echo "Skipping... LazyVim is managed by Pondhouse"

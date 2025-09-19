@@ -1,3 +1,3 @@
 if [[ ! -d "$HOME/.config/nvim" ]]; then
-  omarchy-lazyvim-setup
+  echo "Skipping... LazyVim is managed by Pondhouse"
 fi
