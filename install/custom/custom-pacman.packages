@@ -38,3 +38,8 @@ yazi
 yq
 7zip
 ntfs-3g
+zsh
+zsh-autocomplete
+zsh-autosuggestions
+zsh-syntax-highlighting
+zsh-completions
