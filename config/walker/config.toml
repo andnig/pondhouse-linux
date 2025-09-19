@@ -3,7 +3,7 @@ theme = "omarchy-default"
 theme_base = []
 theme_location = ["~/.local/share/omarchy/default/walker/themes/"]
 hotreload_theme = true
-force_keyboard_focus = true
+# force_keyboard_focus = true
 timeout = 60
 
 [keys.ai]
@@ -58,7 +58,9 @@ switcher_only = true
 hidden = true
 
 [builtins.clipboard]
-hidden = true
+name = "Clipboard"
+icon = ""
+prefix = "~"
 
 [builtins.commands]
 hidden = true
