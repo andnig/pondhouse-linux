@@ -15,38 +15,40 @@ selected=$(
   gum choose --no-limit --selected.foreground="212" \
     "VSCode" \
     "Cursor" \
-    "Zen Browser" \
     "Brave Browser" \
-    "Windows 11"
+    "Windows 11" \
+    "Claude Code" \
+    "opencode"
 )
 
 # Install selected editors
 if echo "$selected" | grep -q "VSCode"; then
-  omarchy-launch-floating-terminal-with-presentation echo 'Installing VSCode...' &&
-    sudo pacman -S --noconfirm visual-studio-code-bin
+  omarchy-launch-floating-terminal-with-presentation "echo 'Installing VSCode...'; sudo pacman -S --noconfirm visual-studio-code-bin"
 fi
 
 if echo "$selected" | grep -q "Cursor"; then
-  omarchy-launch-floating-terminal-with-presentation echo 'Installing Cursor...' &&
-    sudo pacman -S --noconfirm cursor-bin
+  omarchy-launch-floating-terminal-with-presentation "echo 'Installing Cursor...'; sudo pacman -S --noconfirm cursor-bin"
 fi
 
 if echo "$selected" | grep -q "Windows 11"; then
   omarchy-launch-tiling-terminal-with-presentation omarchy-install-virt-windows
 fi
 
-if echo "$selected" | grep -q "Zen Browser"; then
-  omarchy-launch-floating-terminal-with-presentation echo 'Installing Zen Browser...' &&
-    yay -S --noconfirm zen-browser-bin &&
-    xdg-settings set default-web-browser zen.desktop || true &&
-    xdg-mime default zen.desktop x-scheme-handler/http || true &&
-    xdg-mime default zen.desktop x-scheme-handler/https || true
+if echo "$selected" | grep -q "Brave Browser"; then
+  omarchy-launch-floating-terminal-with-presentation "echo 'Installing Brave Browser...'; yay -S --noconfirm brave-bin"
+  # Ask to set Brave as default browser
+  if gum confirm "Set Brave as default browser?"; then
+    echo "Setting Brave as default browser..."
+    xdg-settings set default-web-browser brave-browser.desktop || true &&
+      xdg-mime default brave-browser.desktop x-scheme-handler/http || true &&
+      xdg-mime default brave-browser.desktop x-scheme-handler/https || true
+  fi
 fi
 
-if echo "$selected" | grep -q "Brave Browser"; then
-  omarchy-launch-floating-terminal-with-presentation echo 'Installing Brave Browser...' &&
-    yay -S --noconfirm brave-bin &&
-    xdg-settings set default-web-browser brave-browser.desktop || true &&
-    xdg-mime default brave-browser.desktop x-scheme-handler/http || true &&
-    xdg-mime default brave-browser.desktop x-scheme-handler/https || true
+if echo "$selected" | grep -q "Claude Code"; then
+  omarchy-launch-floating-terminal-with-presentation "echo 'Installing Claude Code...'; sudo pacman -S --noconfirm claude-code"
+fi
+
+if echo "$selected" | grep -q "opencode "; then
+  omarchy-launch-floating-terminal-with-presentation "echo 'Installing opencode...'; sudo pacman -S --noconfirm opencode"
 fi
