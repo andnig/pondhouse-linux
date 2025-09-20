@@ -8,8 +8,11 @@ yay -S --needed --noconfirm \
   ttf-ms-win11-auto
 
 # Install Tailscale
-gum style --foreground 212 --bold "Installing Tailscale..."
-omarchy-install-tailscale
+if gum confirm "Do you want to install and start Tailscale?"; then
+  gum style --foreground 212 --bold "You'll be asked to click a link and sign in. Do this. Or press Ctrl+C to continue without Tailscale."
+  echo "Installing Tailscale..."
+  omarchy-install-tailscale
+fi
 
 # Ask which code editors to install
 gum style --foreground 212 --bold "Select optional packages to install (Space to select, Enter to confirm):"
