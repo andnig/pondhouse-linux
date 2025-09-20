@@ -25,19 +25,24 @@ selected=$(
 
 # Install selected editors
 if echo "$selected" | grep -q "VSCode"; then
-  omarchy-launch-floating-terminal-with-presentation "echo 'Installing VSCode...'; sudo pacman -S --noconfirm visual-studio-code-bin"
+  echo 'Installing VSCode...'
+  sudo pacman -S --noconfirm visual-studio-code-bin
 fi
 
 if echo "$selected" | grep -q "Cursor"; then
-  omarchy-launch-floating-terminal-with-presentation "echo 'Installing Cursor...'; sudo pacman -S --noconfirm cursor-bin"
+  echo 'Installing Cursor...'
+  sudo pacman -S --noconfirm cursor-bin
 fi
 
 if echo "$selected" | grep -q "Windows 11"; then
-  omarchy-launch-tiling-terminal-with-presentation omarchy-install-virt-windows
+  echo 'Installing Windows 11 VM...'
+  omarchy-install-virt-windows
 fi
 
 if echo "$selected" | grep -q "Brave Browser"; then
-  omarchy-launch-floating-terminal-with-presentation "echo 'Installing Brave Browser...'; yay -S --noconfirm brave-bin"
+  echo 'Installing Brave Browser...'
+  yay -S --noconfirm brave-bin
+
   # Ask to set Brave as default browser
   if gum confirm "Set Brave as default browser?"; then
     echo "Setting Brave as default browser..."
@@ -48,9 +53,11 @@ if echo "$selected" | grep -q "Brave Browser"; then
 fi
 
 if echo "$selected" | grep -q "Claude Code"; then
-  omarchy-launch-floating-terminal-with-presentation "echo 'Installing Claude Code...'; sudo pacman -S --noconfirm claude-code"
+  echo 'Installing Claude Code...'
+  sudo pacman -S --noconfirm claude-code
 fi
 
 if echo "$selected" | grep -q "opencode"; then
-  omarchy-launch-floating-terminal-with-presentation "echo 'Installing opencode...'; sudo pacman -S --noconfirm opencode"
+  echo 'Installing opencode...'
+  sudo pacman -S --noconfirm opencode
 fi
