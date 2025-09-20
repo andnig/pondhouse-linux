@@ -1,7 +1,9 @@
 #!/bin/bash
+gum style --foreground 212 --bold "Installing all AUR packages, if missing..."
 mapfile -t packages < <(grep -v '^#' "$HOME/.local/share/omarchy/install/custom/custom-yay.packages" | grep -v '^$')
 yay -Sy --noconfirm --needed "${packages[@]}"
 
+gum style --foreground 212 --bold "Installing Microsoft fonts..."
 yay -S --needed --noconfirm \
   ttf-ms-win11-auto
 
