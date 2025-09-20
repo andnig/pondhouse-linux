@@ -5,7 +5,7 @@
 mapfile -t packages < <(grep -v '^#' "$OMARCHY_INSTALL/custom/custom-yay.packages" | grep -v '^$')
 
 for pkg in "${packages[@]}"; do
-  if ! sudo pacman -S --noconfirm --needed "$pkg"; then
+  if ! sudo pacman -S --cachedir /var/cache/omarchy/mirror/offline --noconfirm --needed "$pkg"; then
     echo "Failed to install $pkg, skipping..."
   fi
 done
