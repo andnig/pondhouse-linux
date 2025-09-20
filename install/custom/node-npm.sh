@@ -9,10 +9,6 @@ mise install node@22
 # Set Node 22 as global default
 mise global node@22
 
-# Verify installation
-echo "Node version: $(node --version)"
-echo "NPM version: $(npm --version)"
-
 echo "Installing global npm packages..."
 mkdir -p $HOME/.npm-global/lib
 export PATH=$HOME/.npm-global/bin:$PATH
