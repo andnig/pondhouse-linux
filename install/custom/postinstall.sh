@@ -11,24 +11,30 @@ omarchy-install-tailscale
 
 # Ask which code editors to install
 gum style --foreground 212 --bold "Select optional packages to install (Space to select, Enter to confirm):"
-selected=$(gum choose --no-limit --selected.foreground="212" \
-  "VSCode" \
-  "Cursor" \
-  "Windows 11")
+selected=$(
+  gum choose --no-limit --selected.foreground="212" \
+    "VSCode" \
+    "Cursor" \
+    "Zen Browser" \
+    "Windows 11"
+)
 
 # Install selected editors
 if echo "$selected" | grep -q "VSCode"; then
   omarchy-launch-floating-terminal-with-presentation echo 'Installing VSCode...' &&
-    sudo pacman -S --noconfirm visual-studio-code-bin &&
-    setsid gtk-launch code
+    sudo pacman -S --noconfirm visual-studio-code-bin
 fi
 
 if echo "$selected" | grep -q "Cursor"; then
   omarchy-launch-floating-terminal-with-presentation echo 'Installing Cursor...' &&
-    sudo pacman -S --noconfirm cursor-bin &&
-    setsid gtk-launch cursor
+    sudo pacman -S --noconfirm cursor-bin
 fi
 
 if echo "$selected" | grep -q "Windows 11"; then
   omarchy-launch-tiling-terminal-with-presentation omarchy-install-virt-windows
+fi
+
+if echo "$selected" | grep -q "Zen Browser"; then
+  omarchy-launch-floating-terminal-with-presentation echo 'Installing Zen Browser...' &&
+    yay -S --noconfirm zen-browser-bin
 fi

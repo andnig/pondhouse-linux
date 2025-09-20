@@ -1,7 +1,5 @@
-infisical-bin
-clipse-bin
-zen-browser-bin
-stripe-cli-bin
+infisical
+stripe-cli
 sunshine
 google-cloud-cli
 fpp
