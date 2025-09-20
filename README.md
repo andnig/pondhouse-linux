@@ -216,6 +216,16 @@ gcloud init
 gcloud auth configure-docker europe-west3-docker.pkg.dev
 ```
 
+## Microsoft Fonts
+
+If you desperately need Microsoft fonts, you can install them with:
+
+```bash
+yay -S --noconfirm ttf-ms-win11-auto
+```
+
+Note that free alternatives are installed by default.
+
 ## NVIDIA undervolting
 
 To undervolt your NVIDIA GPU:
