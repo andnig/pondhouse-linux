@@ -51,6 +51,6 @@ if echo "$selected" | grep -q "Claude Code"; then
   omarchy-launch-floating-terminal-with-presentation "echo 'Installing Claude Code...'; sudo pacman -S --noconfirm claude-code"
 fi
 
-if echo "$selected" | grep -q "opencode "; then
+if echo "$selected" | grep -q "opencode"; then
   omarchy-launch-floating-terminal-with-presentation "echo 'Installing opencode...'; sudo pacman -S --noconfirm opencode"
 fi
