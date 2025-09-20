@@ -27,7 +27,7 @@ if sudo test -f /etc/sudoers.d/99-omarchy-installer; then
 fi
 
 echo
-echo "\e[32mAfter starting your system, open the Menu and select Setup -> Postinstall to finish setup\e[0m"
+echo_in_style "After starting your system, open the Menu and select Setup -> Postinstall to finish setup"
 echo
 
 # Exit gracefully if user chooses not to reboot
