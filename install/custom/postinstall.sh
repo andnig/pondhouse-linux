@@ -16,6 +16,7 @@ selected=$(
     "VSCode" \
     "Cursor" \
     "Zen Browser" \
+    "Brave Browser" \
     "Windows 11"
 )
 
@@ -36,5 +37,16 @@ fi
 
 if echo "$selected" | grep -q "Zen Browser"; then
   omarchy-launch-floating-terminal-with-presentation echo 'Installing Zen Browser...' &&
-    yay -S --noconfirm zen-browser-bin
+    yay -S --noconfirm zen-browser-bin &&
+    xdg-settings set default-web-browser zen.desktop || true &&
+    xdg-mime default zen.desktop x-scheme-handler/http || true &&
+    xdg-mime default zen.desktop x-scheme-handler/https || true
+fi
+
+if echo "$selected" | grep -q "Brave Browser"; then
+  omarchy-launch-floating-terminal-with-presentation echo 'Installing Brave Browser...' &&
+    yay -S --noconfirm brave-bin &&
+    xdg-settings set default-web-browser brave-browser.desktop || true &&
+    xdg-mime default brave-browser.desktop x-scheme-handler/http || true &&
+    xdg-mime default brave-browser.desktop x-scheme-handler/https || true
 fi
