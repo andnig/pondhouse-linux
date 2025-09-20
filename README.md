@@ -14,7 +14,7 @@ An install script is hosted at [https://pondhouse-data.com/utilities/arch/instal
 
 Add the script in the `public/utilities/arch` directory to the pondhouse-data.com website.
 
-# Arch Linux
+## Getting Started
 
 On arch, we use [Omarchy](https://omarchy.org/) as a base configuration.
 It provides a nice, minimal opinionated setup for Arch Linux. However, we
@@ -23,8 +23,12 @@ keep it as a git submodule and then only fetch the files we need.
 
 ## Tailscale
 
+### Old (this is not needed anymore, as tailscale is part of pondhouse linux postinstall.sh)
+
 Use systemctl to enable and start the service:
 sudo systemctl enable --now tailscaled
+
+### New
 
 Connect your machine to your Tailscale network and authenticate in your browser:
 sudo tailscale up
@@ -226,7 +230,7 @@ To undervolt your NVIDIA GPU:
    After=network.target
 
    [Service]
-   ExecStart=/usr/local/bin/nvidia_oc set --index 0 --power-limit 250000 --freq-offset 255 --mem-offset 850 --min-clock 210 --max-clock 2745
+   ExecStart=/usr/local/bin/nvidia_oc set --index 0 --power-limit 280000 --freq-offset 215 --mem-offset 850 --min-clock 210 --max-clock 2730
    User=root
    Restart=on-failure
 
