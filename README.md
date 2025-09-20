@@ -167,6 +167,15 @@ Now restart the 1Password app and see if it works.
    Select Set Up SSH Agent, then choose whether or not you want to display SSH key names when you authorize connections.
 3. Also select "Integrate with 1Password CLI"
 
+### SSH alternative
+
+If you do not want to use 1Password:
+
+1. Place your private key in `~/.ssh/id_rsa` and set permissions to 600 with `chmod 600 ~/.ssh/id_rsa`
+2. Also place your public key in `~/.ssh/id_rsa.pub` and set permissions to 644 with `chmod 644 ~/.ssh/id_rsa.pub`
+3. Add the public key to your GitHub account (or other services you use)
+4. in ~/.zshrc, search the line `SSH Agent` and follow the instructions there to enable the ssh-agent on login
+
 ## Zen Browser
 
 Initially, there are some manual steps to do:

@@ -169,7 +169,7 @@ function ntfy() {
 
 # SSH Agent
 export SSH_AUTH_SOCK=~/.1password/agent.sock
-# Alternative: If you don't want to use the 1Password SSH agent, you can use the following code to start a local ssh-agent and add your keys to ~/.ssh/.
+# Alternative: If you don't want to use the 1Password SSH agent, you can use the following code to start a local ssh-agent and add your keys to ~/.ssh/. Disable the line above in this case.
 # export SSH_AUTH_SOCK=~/.ssh/ssh-agent.$HOST.sock
 # ALREADY_RUNNING=$(ssh-add -l > /dev/null; echo $?)
 #
