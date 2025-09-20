@@ -28,8 +28,9 @@ fi
 
 echo
 echo_in_style "After starting your system, execute these steps:"
-echo_in_style "1. open the Menu and select Setup -> Postinstall to finish setup"
-echo_in_style "2. follow the (optional) steps in ~/.local/share/omarchy/README.md"
+echo_in_style "1. open the Menu (the very top left corner) and select Setup -> Wifi to select your wifi network"
+echo_in_style "2. open the Menu and select Setup -> Postinstall to finish setup"
+echo_in_style "3. follow the (optional) steps in ~/.local/share/omarchy/README.md"
 echo
 
 # Exit gracefully if user chooses not to reboot
