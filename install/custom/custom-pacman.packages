@@ -19,7 +19,6 @@ lua
 luajit
 meson
 npm
-pandoc
 python
 python-pip
 python-pynvim
