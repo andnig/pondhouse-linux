@@ -1,4 +1,5 @@
-# Ignore the entire config/chromium directory
+config/xournalpp/
+
 config/chromium/
 !config/chromium/Default/preferences
 
