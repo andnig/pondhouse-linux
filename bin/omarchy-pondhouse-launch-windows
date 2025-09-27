@@ -1,0 +1,41 @@
+#!/bin/bash
+
+# Function to show loading indicator
+show_loading() {
+  local duration=$1
+  local spinner='|/-\'
+  local end_time=$((SECONDS + duration))
+
+  echo -n "Starting Windows container and waiting for connection"
+
+  while [ $SECONDS -lt $end_time ]; do
+    for i in $(seq 0 3); do
+      if [ $SECONDS -ge $end_time ]; then
+        break 2
+      fi
+      echo -ne "\rStarting Windows container and waiting for connection ${spinner:$i:1}"
+      sleep 0.25
+    done
+  done
+
+  echo -e "\rStarting Windows container and waiting for connection... Done!"
+}
+
+# Start Docker Compose
+echo "Starting Windows container..."
+docker compose --file $HOME/.config/windows/compose.yml up -d
+
+# Check if Docker Compose started successfully
+if [ $? -eq 0 ]; then
+  echo "Docker Compose started successfully!"
+
+  # Show loading indicator for 5 seconds
+  show_loading 5
+
+  # Connect with Remmina
+  echo "Connecting to Windows via RDP..."
+  remmina -c rdp://MyWindowsUser:MyWindowsPassword@127.0.0.1
+else
+  echo "Error: Failed to start Docker Compose"
+  exit 1
+fi

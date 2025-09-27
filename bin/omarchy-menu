@@ -233,7 +233,7 @@ show_setup_security_menu() {
 }
 
 show_install_menu() {
-  case $(menu "Install" "󰣇  Package\n󰣇  AUR\n  Web App\n  TUI\n  Service\n  Style\n󰵮  Development\n  Editor\n  Terminal\n󱚤  AI\n  Gaming\n󰨡  Windows") in
+  case $(menu "Install" "󰣇  Package\n󰣇  AUR\n  Web App\n  TUI\n  Service\n  Style\n󰵮  Development\n  Editor\n  Terminal\n󱚤  AI\n  Gaming") in
   *Package*) terminal omarchy-pkg-install ;;
   *AUR*) terminal omarchy-pkg-aur-install ;;
   *Web*) present_terminal omarchy-webapp-install ;;
@@ -245,7 +245,6 @@ show_install_menu() {
   *Terminal*) show_install_terminal_menu ;;
   *AI*) show_install_ai_menu ;;
   *Gaming*) show_install_gaming_menu ;;
-  *Windows*) show_install_windows_menu ;;
   *) show_main_menu ;;
   esac
 }
@@ -296,13 +295,6 @@ show_install_ai_menu() {
   *Ollama*) install "Ollama" $ollama_pkg ;;
   *Crush*) install "Crush" "crush-bin" ;;
   *opencode*) install "opencode" "opencode" ;;
-  *) show_install_menu ;;
-  esac
-}
-
-show_install_windows_menu() {
-  case $(menu "Install" "󰨡  Windows 11 VM") in
-  *Windows*) omarchy-launch-tiling-terminal-with-presentation omarchy-install-virt-windows ;;
   *) show_install_menu ;;
   esac
 }
