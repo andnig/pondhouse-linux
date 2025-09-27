@@ -10,9 +10,8 @@ sudo pacman -S --needed --noconfirm \
   zsh-autocomplete \
   zsh-autosuggestions \
   zsh-syntax-highlighting \
-  zsh-completions
-
-yay -S --needed --noconfirm zsh-vi-mode
+  zsh-completions \
+  zsh-vi-mode
 
 echo "Setting up custom zsh plugins directory..."
 

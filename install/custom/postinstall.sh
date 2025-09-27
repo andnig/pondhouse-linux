@@ -1,7 +1,12 @@
 #!/bin/bash
-gum style --foreground 212 --bold "Installing all AUR packages, if missing..."
-mapfile -t packages < <(grep -v '^#' "$HOME/.local/share/omarchy/install/custom/custom-yay.packages" | grep -v '^$')
-yay -Sy --noconfirm --needed "${packages[@]}"
+# gum style --foreground 212 --bold "Installing all AUR packages, if missing..."
+# mapfile -t packages < <(grep -v '^#' "$HOME/.local/share/omarchy/install/custom/custom-yay.packages" | grep -v '^$')
+# yay -Sy --noconfirm --needed "${packages[@]}"
+
+# Install node-npm
+
+gum style --foreground 212 --bold "Installing Node.js and npm packages..."
+source "$HOME/.local/share/omarchy/install/custom/node-npm.sh"
 
 # Install Tailscale
 if gum confirm "Do you want to install and start Tailscale?"; then
