@@ -206,6 +206,12 @@ chromium --profile-directory="Profile 3"
 chromium --profile-directory="Profile 4"
 ```
 
+## MS Teams
+
+In the `applications` folder, copy the `teams.desktop` file and adjust accordingly.
+Use different --profile-directory for different teams accounts.
+Then run `omarchy-refresh-applications`.
+
 ## Syncthing
 
 Start syncthing with `systemctl enable --now syncthing@andreas`
