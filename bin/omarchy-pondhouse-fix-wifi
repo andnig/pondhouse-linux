@@ -1,0 +1,4 @@
+#!/bin/bash
+
+sudo modprobe -r mt7925e
+sudo modprobe mt7925e
