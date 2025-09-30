@@ -3,8 +3,10 @@
 # mapfile -t packages < <(grep -v '^#' "$HOME/.local/share/omarchy/install/custom/custom-yay.packages" | grep -v '^$')
 # yay -Sy --noconfirm --needed "${packages[@]}"
 
-# Install node-npm
+gum style --foreground 212 --bold "Installing Windows as app..."
+$HOME/.local/share/omarchy/install/custom/windows.sh
 
+# Install node-npm
 gum style --foreground 212 --bold "Installing Node.js and npm packages..."
 "$HOME/.local/share/omarchy/install/custom/node-npm.sh"
 
@@ -22,7 +24,6 @@ selected=$(
     "VSCode" \
     "Cursor" \
     "Brave Browser" \
-    "Windows 11" \
     "Claude Code" \
     "opencode"
 )
@@ -36,11 +37,6 @@ fi
 if echo "$selected" | grep -q "Cursor"; then
   echo 'Installing Cursor...'
   sudo pacman -S --noconfirm cursor-bin
-fi
-
-if echo "$selected" | grep -q "Windows 11"; then
-  echo 'Installing Windows 11 VM...'
-  omarchy-install-virt-windows
 fi
 
 if echo "$selected" | grep -q "Brave Browser"; then
