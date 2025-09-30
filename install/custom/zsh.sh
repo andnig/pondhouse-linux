@@ -21,9 +21,7 @@ chmod 755 "$HOME/.zsh/plugins"
 
 echo "Cloning ohmyzsh to get tmux plugin..."
 
-git clone --depth 1 https://github.com/ohmyzsh/ohmyzsh.git /tmp/ohmyzsh
-cp -r /tmp/ohmyzsh/plugins/tmux "$HOME/.zsh/plugins/"
-rm -rf /tmp/ohmyzsh
+mv /usr/share/oh-my-zsh/plugins/tmux "$HOME/.zsh/plugins/."
 
 # Stow zsh configuration
 stow -d ~/.local/share/omarchy/config -t $HOME zsh
