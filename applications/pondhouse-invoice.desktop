@@ -1,0 +1,9 @@
+[Desktop Entry]
+Version=1.0
+Name=Pondhouse Invoice
+Comment=Pondhouse Invoice
+Exec=omarchy-launch-webapp https://invoice.pondhouse-data.com/dashboard
+Terminal=false
+Type=Application
+Icon=pondhouseinvoice
+StartupNotify=true
