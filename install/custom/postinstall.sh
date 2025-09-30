@@ -3,9 +3,6 @@
 # mapfile -t packages < <(grep -v '^#' "$HOME/.local/share/omarchy/install/custom/custom-yay.packages" | grep -v '^$')
 # yay -Sy --noconfirm --needed "${packages[@]}"
 
-gum style --foreground 212 --bold "Installing Windows as app..."
-$HOME/.local/share/omarchy/install/custom/windows.sh
-
 # Install node-npm
 gum style --foreground 212 --bold "Installing Node.js and npm packages..."
 "$HOME/.local/share/omarchy/install/custom/node-npm.sh"

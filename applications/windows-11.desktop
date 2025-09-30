@@ -1,0 +1,9 @@
+[Desktop Entry]
+Version=1.0
+Name=Windows 11 a
+Comment=Windows 11 Omarchy App
+Exec=omarchy-pondhouse-launch-floating-terminal omarchy-pondhouse-launch-windows
+Terminal=false
+Type=Application
+Icon=windows11
+StartupNotify=true
