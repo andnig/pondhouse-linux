@@ -32,3 +32,7 @@ sudo usermod -s /usr/bin/zsh "$USER"
 
 echo "zsh installation complete!"
 echo "Default shell changed to zsh. Please log out and back in for the change to take effect."
+
+echo "Installing tpm (tmux plugin manager)"
+rm -rf ~/.tmux/plugins/tpm
+mv /usr/share/tmux/plugins/tpm ~/.tmux/plugins/tpm

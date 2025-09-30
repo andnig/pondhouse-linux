@@ -1,5 +1,5 @@
-omarchy-webapp-install "Immich" https://pics.andreasnigg.com https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/immich.png
-omarchy-webapp-install "Claude" https://claude.ai https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/claude-ai.png
+omarchy-webapp-install "Immich" https://pics.andreasnigg.com immich.png
+omarchy-webapp-install "Claude" https://claude.ai claude-ai.png
 omarchy-webapp-install "ChatGPT" https://chatgpt.com/ ChatGPT.png
 omarchy-webapp-install "YouTube" https://youtube.com/ YouTube.png
 omarchy-webapp-install "GitHub" https://github.com/ GitHub.png
