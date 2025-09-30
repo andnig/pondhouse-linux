@@ -29,11 +29,17 @@ selected=$(
 if echo "$selected" | grep -q "VSCode"; then
   echo 'Installing VSCode...'
   sudo pacman -S --noconfirm visual-studio-code-bin
+  for mimetype in text/english text/plain text/x-makefile text/x-c++hdr text/x-c++src text/x-chdr text/x-csrc text/x-java text/x-moc text/x-pascal text/x-tcl text/x-tex application/x-shellscript text/x-c text/x-c++; do
+    xdg-mime default code.desktop "$mimetype"
+  done
 fi
 
 if echo "$selected" | grep -q "Cursor"; then
   echo 'Installing Cursor...'
   sudo pacman -S --noconfirm cursor-bin
+  for mimetype in text/english text/plain text/x-makefile text/x-c++hdr text/x-c++src text/x-chdr text/x-csrc text/x-java text/x-moc text/x-pascal text/x-tcl text/x-tex application/x-shellscript text/x-c text/x-c++; do
+    xdg-mime default cursor.desktop "$mimetype"
+  done
 fi
 
 if echo "$selected" | grep -q "Brave Browser"; then
