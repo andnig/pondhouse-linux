@@ -5,28 +5,11 @@
 
 # Install zsh and tmux plugins
 gum style --foreground 212 --bold "Installing zsh and tmux plugins..."
-rm -rf $HOME/.tmux/plugins/tpm || true
+rm -rf $HOME/.tmux/plugins || true
 mkdir -p "$HOME/.tmux/plugins"
 git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm
 
-rm -rf "$HOME/.tmux/plugins/tmux" || true
-git clone --depth 1 git@github.com:catppuccin/tmux.git "$HOME/.tmux/plugins/tmux"
-rm -rf "$HOME/.tmux/plugins/vim-tmux-navigator" || true
-git clone --depth 1 git@github.com:christoomey/vim-tmux-navigator.git "$HOME/.tmux/plugins/vim-tmux-navigator"
-rm -rf "$HOME/.tmux/plugins/tmux-sensible" || true
-git clone --depth 1 git@github.com:tmux-plugins/tmux-sensible.git "$HOME/.tmux/plugins/tmux-sensible"
-rm -rf "$HOME/.tmux/plugins/tmux-yank" || true
-git clone --depth 1 git@github.com:tmux-plugins/tmux-yank.git "$HOME/.tmux/plugins/tmux-yank"
-rm -rf "$HOME/.tmux/plugins/tmux-resurrect" || true
-git clone --depth 1 git@github.com:tmux-plugins/tmux-resurrect.git "$HOME/.tmux/plugins/tmux-resurrect"
-rm -rf "$HOME/.tmux/plugins/tmux-continuum" || true
-git clone --depth 1 git@github.com:tmux-plugins/tmux-continuum.git "$HOME/.tmux/plugins/tmux-continuum"
-rm -rf "$HOME/.tmux/plugins/tmux-fzf-url" || true
-git clone --depth 1 git@github.com:wfxr/tmux-fzf-url.git "$HOME/.tmux/plugins/tmux-fzf-url"
-rm -rf "$HOME/.tmux/plugins/tmux-fzf" || true
-git clone --depth 1 git@github.com:sainnhe/tmux-fzf.git "$HOME/.tmux/plugins/tmux-fzf"
-rm -rf "$HOME/.tmux/plugins/tmux-fpp" || true
-git clone --depth 1 git@github.com:tmux-plugins/tmux-fpp.git "$HOME/.tmux/plugins/tmux-fpp"
+~/.tmux/plugins/tpm/scripts/install_plugins.sh
 
 gum style --foreground 212 --bold "Installing zsh tmux plugin..."
 git clone --depth 1 https://github.com/ohmyzsh/ohmyzsh.git /tmp/ohmyzsh
