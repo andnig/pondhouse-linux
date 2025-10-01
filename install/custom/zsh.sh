@@ -35,6 +35,6 @@ echo "zsh installation complete!"
 echo "Default shell changed to zsh. Please log out and back in for the change to take effect."
 
 echo "Installing tpm (tmux plugin manager)"
-rm -rf ~/.tmux/plugins/tpm || true
+rm -rf $HOME/.tmux/plugins/tpm || true
 mkdir -p "$HOME/.tmux/plugins"
 mv /usr/share/tmux/plugins/tpm $HOME/.tmux/plugins/tpm
