@@ -7,7 +7,7 @@ echo "Installing Node 22 via mise..."
 mise install node@22
 
 # Set Node 22 as global default
-mise global node@22
+mise use node@22
 
 echo "Installing global npm packages..."
 mkdir -p $HOME/.npm-global/lib

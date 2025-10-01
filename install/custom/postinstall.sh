@@ -13,12 +13,13 @@ git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm
 
 gum style --foreground 212 --bold "Installing zsh tmux plugin..."
 git clone --depth 1 https://github.com/ohmyzsh/ohmyzsh.git /tmp/ohmyzsh
+mkdir -p "$HOME/.zsh/plugins/"
 cp -r /tmp/ohmyzsh/plugins/tmux "$HOME/.zsh/plugins/"
 rm -rf /tmp/ohmyzsh
 
 # Install node-npm
 gum style --foreground 212 --bold "Installing Node.js and npm packages..."
-"$HOME/.local/share/omarchy/install/custom/node-npm.sh"
+bash "$HOME/.local/share/omarchy/install/custom/node-npm.sh"
 
 # Install Tailscale
 if gum confirm "Do you want to install and start Tailscale?"; then
