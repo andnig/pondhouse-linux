@@ -15,10 +15,6 @@ sudo pacman -S --needed --noconfirm \
 
 echo "Setting up custom zsh plugins directory..."
 
-# Ensure custom zsh plugins directory exists
-mkdir -p "$HOME/.zsh/plugins"
-chmod 755 "$HOME/.zsh/plugins"
-
 # Stow zsh configuration
 stow -d ~/.local/share/omarchy/config -t $HOME zsh
 
