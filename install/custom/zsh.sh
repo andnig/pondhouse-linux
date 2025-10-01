@@ -28,7 +28,8 @@ ls -lah /usr/share/oh-my-zsh
 ls -lah /usr/share/oh-my-zsh/plugins
 ls -lah $HOME/.zsh/plugins
 
-mv /usr/share/oh-my-zsh/plugins/tmux "$HOME/.zsh/plugins/."
+cp -r /usr/share/oh-my-zsh/plugins/tmux "$HOME/.zsh/plugins/"
+rm -rf /usr/share/oh-my-zsh || true
 
 # Stow zsh configuration
 stow -d ~/.local/share/omarchy/config -t $HOME zsh
@@ -43,4 +44,5 @@ echo "Default shell changed to zsh. Please log out and back in for the change to
 echo "Installing tpm (tmux plugin manager)"
 rm -rf $HOME/.tmux/plugins/tpm || true
 mkdir -p "$HOME/.tmux/plugins"
-mv /usr/share/tmux/plugins/tpm $HOME/.tmux/plugins/tpm
+cp -r /usr/share/tmux/plugins/tpm $HOME/.tmux/plugins/
+rm -rf /usr/share/tmux/plugins/tpm || true
