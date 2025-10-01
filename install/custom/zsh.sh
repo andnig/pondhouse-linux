@@ -22,6 +22,12 @@ chmod 755 "$HOME/.zsh/plugins"
 echo "Cloning ohmyzsh to get tmux plugin..."
 
 mkdir -p "$HOME/.zsh/plugins"
+echo "User home: $HOME"
+ls -lah /usr/share
+ls -lah /usr/share/oh-my-zsh
+ls -lah /usr/share/oh-my-zsh/plugins
+ls -lah $HOME/.zsh/plugins
+
 mv /usr/share/oh-my-zsh/plugins/tmux "$HOME/.zsh/plugins/."
 
 # Stow zsh configuration
