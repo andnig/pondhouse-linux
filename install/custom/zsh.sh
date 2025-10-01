@@ -21,6 +21,7 @@ chmod 755 "$HOME/.zsh/plugins"
 
 echo "Cloning ohmyzsh to get tmux plugin..."
 
+mkdir -p "$HOME/.zsh/plugins"
 mv /usr/share/oh-my-zsh/plugins/tmux "$HOME/.zsh/plugins/."
 
 # Stow zsh configuration
@@ -34,5 +35,6 @@ echo "zsh installation complete!"
 echo "Default shell changed to zsh. Please log out and back in for the change to take effect."
 
 echo "Installing tpm (tmux plugin manager)"
-rm -rf ~/.tmux/plugins/tpm
-mv /usr/share/tmux/plugins/tpm ~/.tmux/plugins/tpm
+rm -rf ~/.tmux/plugins/tpm || true
+mkdir -p "$HOME/.tmux/plugins"
+mv /usr/share/tmux/plugins/tpm $HOME/.tmux/plugins/tpm
