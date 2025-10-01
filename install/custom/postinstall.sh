@@ -3,6 +3,17 @@
 # mapfile -t packages < <(grep -v '^#' "$HOME/.local/share/omarchy/install/custom/custom-yay.packages" | grep -v '^$')
 # yay -Sy --noconfirm --needed "${packages[@]}"
 
+# Install zsh and tmux plugins
+gum style --foreground 212 --bold "Installing zsh and tmux plugins..."
+rm -rf $HOME/.tmux/plugins/tpm || true
+mkdir -p "$HOME/.tmux/plugins"
+git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm
+
+gum style --foreground 212 --bold "Installing zsh tmux plugin..."
+git clone --depth 1 https://github.com/ohmyzsh/ohmyzsh.git /tmp/ohmyzsh
+cp -r /tmp/ohmyzsh/plugins/tmux "$HOME/.zsh/plugins/"
+rm -rf /tmp/ohmyzsh
+
 # Install node-npm
 gum style --foreground 212 --bold "Installing Node.js and npm packages..."
 "$HOME/.local/share/omarchy/install/custom/node-npm.sh"
@@ -64,3 +75,7 @@ if echo "$selected" | grep -q "opencode"; then
   echo 'Installing opencode...'
   sudo pacman -S --noconfirm opencode
 fi
+
+# Final message
+gum style --foreground 212 --bold "Custom post-installation script completed!"
+gum style --foreground 212 --bold "Bress CTRL + B and then capital I to install tmux plugins."
