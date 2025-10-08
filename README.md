@@ -255,7 +255,7 @@ To undervolt your NVIDIA GPU:
    After=network.target
 
    [Service]
-   ExecStart=/usr/local/bin/nvidia_oc set --index 0 --power-limit 280000 --freq-offset 215 --mem-offset 850 --min-clock 210 --max-clock 2730
+   ExecStart=/usr/local/bin/nvidia_oc set --index 0 --power-limit 290000 --freq-offset 200 --mem-offset 850 --min-clock 210 --max-clock 2730
    User=root
    Restart=on-failure
 
@@ -277,6 +277,14 @@ To undervolt your NVIDIA GPU:
    ```
 
 > **Note:** To test out different settings and compare them to default, you can manually run the command from `ExecStart` in a terminal.
+
+## Thunderbird
+
+In your thunderbird, go to menu -> help -> troubleshooting information. From there, click on the about:profiles link. This will show the currently active profile and its location.
+
+Copy the whole content of the profile folder to backup.
+
+To restore, copy the content back to the profile folder.
 
 ## License
 
