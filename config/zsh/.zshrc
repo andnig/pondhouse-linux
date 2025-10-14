@@ -267,3 +267,5 @@ eval "$(uv generate-shell-completion zsh)"
 
 # For QEMU/KVM libvirt
 export LIBVIRT_DEFAULT_URI='qemu:///system'
+
+eval "$(pnpm completion zsh)"
