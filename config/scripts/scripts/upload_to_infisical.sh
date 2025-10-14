@@ -1,5 +1,49 @@
 #!/bin/bash
 
+set_secrets_batch_with_retry() {
+  local env="$1"
+  local project_id="$2"
+  shift 2
+  local secrets=("$@")
+  local max_retries=5
+  local retry_count=0
+  local wait_time=60
+
+  while [ $retry_count -lt $max_retries ]; do
+    local output
+    local exit_code
+    
+    if [ -n "$project_id" ]; then
+      output=$(infisical secrets set "${secrets[@]}" --env "$env" --projectId "$project_id" 2>&1)
+      exit_code=$?
+    else
+      output=$(infisical secrets set "${secrets[@]}" --env "$env" 2>&1)
+      exit_code=$?
+    fi
+
+    if [ $exit_code -eq 0 ]; then
+      return 0
+    fi
+
+    if echo "$output" | grep -qi "rate limit\|too many requests\|429"; then
+      retry_count=$((retry_count + 1))
+      if [ $retry_count -lt $max_retries ]; then
+        echo "Rate limited. Waiting ${wait_time}s before retry $retry_count/$max_retries"
+        sleep $wait_time
+      else
+        echo "Error: Max retries reached"
+        echo "$output"
+        return 1
+      fi
+    else
+      echo "Error setting secrets: $output"
+      return 1
+    fi
+  done
+
+  return 1
+}
+
 # Function to display help message
 show_help() {
   cat <<EOF
@@ -82,6 +126,8 @@ if [ ! -r "$ENV_FILE" ]; then
   exit 1
 fi
 
+secrets=()
+
 # Read each line in the .env file
 while IFS= read -r line || [ -n "$line" ]; do
   # Skip empty lines and lines starting with '#'
@@ -96,13 +142,26 @@ while IFS= read -r line || [ -n "$line" ]; do
       value="${value:1:${#value}-2}"
     fi
 
-    # Set the secret in Infisical with the potentially modified value
-    if [ -n "$PROJECT_ID" ]; then
-      infisical secrets set "$key=$value" --env "$ENV" --projectId "$PROJECT_ID"
-    else
-      infisical secrets set "$key=$value" --env "$ENV"
+    if [ -z "$value" ]; then
+      echo "Skipping empty value for key: $key"
+      continue
     fi
+
+    secrets+=("$key=$value")
   fi
 done <"$ENV_FILE"
 
-echo "Successfully processed $ENV_FILE for environment $ENV"
+if [ ${#secrets[@]} -eq 0 ]; then
+  echo "No secrets to upload"
+  exit 0
+fi
+
+echo "Uploading ${#secrets[@]} secrets..."
+set_secrets_batch_with_retry "$ENV" "$PROJECT_ID" "${secrets[@]}"
+
+if [ $? -eq 0 ]; then
+  echo "Successfully processed $ENV_FILE for environment $ENV"
+else
+  echo "Failed to upload secrets"
+  exit 1
+fi
