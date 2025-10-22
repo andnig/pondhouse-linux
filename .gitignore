@@ -16,3 +16,5 @@ config/walker/themes/
 config/systemd/
 config/sunshine/
 !config/sunshine/sunshine.conf
+
+config/windows
