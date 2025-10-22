@@ -172,7 +172,7 @@ alias locate="plocate"
 function ntfy() {
     echo "Sending notification with message: $1"
     curl -d $1 "https://ntfy.devopsandmore.com/devops_notify"
-} 
+}
 
 # SSH Agent
 export SSH_AUTH_SOCK=~/.1password/agent.sock
@@ -267,5 +267,3 @@ eval "$(uv generate-shell-completion zsh)"
 
 # For QEMU/KVM libvirt
 export LIBVIRT_DEFAULT_URI='qemu:///system'
-
-eval "$(pnpm completion zsh)"
