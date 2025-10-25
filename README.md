@@ -195,10 +195,6 @@ Initially, there are some manual steps to do:
 Chromium is used for launching web apps (like Teams), as chromium allows for
 border-less windows. For this, we also need respective profiles and logins.
 
-The profiles are part of the dotfiles, but you need to log in manually.
-
-Run all of these commands once and login to the respective accounts:
-
 ```bash
 chromium --profile-directory="Profile 1"
 chromium --profile-directory="Profile 2"
@@ -223,6 +219,16 @@ other devices Pixel 6 is synced.
 Add the shared folders on Pixel 6 as normal.
 (If the web ui cant be reached, look at `systemctl status syncthing@andreas` for
 info on which port the ui runs).
+
+On desktop, use folders ~/.sync (id: sync-0), ~/.notes (id: notes-0).
+
+> **NOTE:** Pixel 6 should be set as "Introducer" device for all folders, so that
+> new devices added to Pixel 6 automatically get all folders.
+
+### Pondhouse Syncthing setup
+
+To have a dedicated pondhouse syncthing setup, create a new folder ~/.pondhouse-sync and
+add the folder to the respective devices to sync.
 
 ## Google docker
 
