@@ -3,6 +3,9 @@
 # mapfile -t packages < <(grep -v '^#' "$HOME/.local/share/omarchy/install/custom/custom-yay.packages" | grep -v '^$')
 # yay -Sy --noconfirm --needed "${packages[@]}"
 
+# chmod +x all files in folder ~/scripts
+chmod -R +x "$HOME/scripts"
+
 # Install zsh and tmux plugins
 gum style --foreground 212 --bold "Installing zsh and tmux plugins..."
 rm -rf $HOME/.tmux/plugins || true
