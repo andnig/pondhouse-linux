@@ -135,6 +135,7 @@ alias vim=nvim
 
 alias fo=find_and_open.sh
 alias on="cd $HOME/.notes && nvim ."
+alias os="cd $HOME/.sync"
 alias nn="new_note.sh"
 
 # File system
