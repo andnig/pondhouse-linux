@@ -1,0 +1,92 @@
+#!/bin/bash
+# Helper script that runs with elevated privileges
+# This should only be called by omarchy-pondhouse-launch-russmedia-vpn
+
+PROFILE_FILE="/opt/cisco/secureclient/vpn/profile/RussmediaAnyconnect.xml"
+
+# Create the profile directory if it doesn't exist
+mkdir -p /opt/cisco/secureclient/vpn/profile
+
+# Create the XML file with the provided content if it doesn't exist
+if [ ! -f "$PROFILE_FILE" ]; then
+    cat > "$PROFILE_FILE" <<'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<AnyConnectProfile xmlns="http://schemas.xmlsoap.org/encoding/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://schemas.xmlsoap.org/encoding/ AnyConnectProfile.xsd">
+	<ClientInitialization>
+		<UseStartBeforeLogon UserControllable="true">false</UseStartBeforeLogon>
+		<AutomaticCertSelection UserControllable="true">true</AutomaticCertSelection>
+		<ShowPreConnectMessage>false</ShowPreConnectMessage>
+		<CertificateStore>All</CertificateStore>
+		<CertificateStoreMac>All</CertificateStoreMac>
+		<CertificateStoreOverride>false</CertificateStoreOverride>
+		<ProxySettings>Native</ProxySettings>
+		<AllowLocalProxyConnections>false</AllowLocalProxyConnections>
+		<AuthenticationTimeout>30</AuthenticationTimeout>
+		<AutoConnectOnStart UserControllable="true">false</AutoConnectOnStart>
+		<MinimizeOnConnect UserControllable="true">true</MinimizeOnConnect>
+		<LocalLanAccess UserControllable="true">false</LocalLanAccess>
+		<DisableCaptivePortalDetection UserControllable="false">false</DisableCaptivePortalDetection>
+		<ClearSmartcardPin UserControllable="true">true</ClearSmartcardPin>
+		<IPProtocolSupport>IPv4,IPv6</IPProtocolSupport>
+		<AutoReconnect UserControllable="false">true
+			<AutoReconnectBehavior UserControllable="false">ReconnectAfterResume</AutoReconnectBehavior>
+		</AutoReconnect>
+		<SuspendOnConnectedStandby>false</SuspendOnConnectedStandby>
+		<AutoUpdate UserControllable="false">true</AutoUpdate>
+		<RSASecurIDIntegration UserControllable="false">Automatic</RSASecurIDIntegration>
+		<WindowsLogonEnforcement>SingleLocalLogon</WindowsLogonEnforcement>
+		<LinuxLogonEnforcement>SingleLocalLogon</LinuxLogonEnforcement>
+		<WindowsVPNEstablishment>LocalUsersOnly</WindowsVPNEstablishment>
+		<LinuxVPNEstablishment>LocalUsersOnly</LinuxVPNEstablishment>
+		<AutomaticVPNPolicy>true
+			<TrustedDNSDomains>medienhaus.at</TrustedDNSDomains>
+			<TrustedDNSServers>172.18.1.21,172.18.1.22,194.208.21.21,194.208.21.22</TrustedDNSServers>
+			<TrustedHttpsServerList>
+				<TrustedHttpsServer>
+					<Address>rm-sub-ca1.medienhaus.at</Address>
+					<Port>443</Port>
+					<CertificateHash>A297FB6E8CD8A9D7AE4F0F0A4E58F5C81D994BB013A206D8101065FDD90D9468</CertificateHash>
+				</TrustedHttpsServer>
+			</TrustedHttpsServerList>
+			<TrustedNetworkPolicy>Disconnect</TrustedNetworkPolicy>
+			<UntrustedNetworkPolicy>DoNothing</UntrustedNetworkPolicy>
+			<AlwaysOn>false
+			</AlwaysOn>
+		</AutomaticVPNPolicy>
+		<PPPExclusion UserControllable="false">Automatic
+			<PPPExclusionServerIP UserControllable="false"></PPPExclusionServerIP>
+		</PPPExclusion>
+		<EnableScripting UserControllable="false">false</EnableScripting>
+		<EnableAutomaticServerSelection UserControllable="true">false
+			<AutoServerSelectionImprovement>20</AutoServerSelectionImprovement>
+			<AutoServerSelectionSuspendTime>4</AutoServerSelectionSuspendTime>
+		</EnableAutomaticServerSelection>
+		<RetainVpnOnLogoff>false
+		</RetainVpnOnLogoff>
+		<CaptivePortalRemediationBrowserFailover>false</CaptivePortalRemediationBrowserFailover>
+		<AllowManualHostInput>true</AllowManualHostInput>
+	</ClientInitialization>
+	<ServerList>
+		<HostEntry>
+			<HostName>russmedia VPN</HostName>
+			<HostAddress>hoaxvpn.russmedia.com</HostAddress>
+			<UserGroup>RMM</UserGroup>
+		</HostEntry>
+		<HostEntry>
+			<HostName>russmedia VPN - Classic</HostName>
+			<HostAddress>vpn-legacy.russmedia.com</HostAddress>
+			<UserGroup>RMM</UserGroup>
+		</HostEntry>
+	</ServerList>
+</AnyConnectProfile>
+EOF
+    echo "Profile file created successfully."
+fi
+
+# Start the vpnagentd.service if not already running
+if ! systemctl is-active --quiet vpnagentd.service; then
+    echo "Starting vpnagentd.service..."
+    systemctl start vpnagentd.service
+    # Wait for service to be fully started
+    sleep 1
+fi
