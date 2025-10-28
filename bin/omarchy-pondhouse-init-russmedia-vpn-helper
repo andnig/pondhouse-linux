@@ -81,6 +81,11 @@ if [ ! -f "$PROFILE_FILE" ]; then
 </AnyConnectProfile>
 EOF
     echo "Profile file created successfully."
+
+  echo "Setting up autostart prevention for cisco-secure-client.desktop..."
+  sudo rm /etc/xdg/autostart/com.cisco.secureclient.gui.desktop || true
+  sudo touch /etc/xdg/autostart/com.cisco.secureclient.gui.desktop
+  sudo chattr +i /etc/xdg/autostart/com.cisco.secureclient.gui.desktop
 fi
 
 # Start the vpnagentd.service if not already running
