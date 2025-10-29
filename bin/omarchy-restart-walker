@@ -26,5 +26,6 @@ else
 
   # Restart services
   setsid uwsm-app -- elephant &
+  wait 2
   setsid uwsm-app -- walker --gapplication-service &
 fi
