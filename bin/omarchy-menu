@@ -251,11 +251,12 @@ show_install_menu() {
 }
 
 show_install_service_menu() {
-  case $(menu "Install" "  Dropbox\n  Tailscale\n󰟵  Bitwarden\n  Chromium Account") in
+  case $(menu "Install" "  Dropbox\n  Tailscale\n󰟵  Bitwarden\n  Chromium Account\n󰖂  Russmedia VPN") in
   *Dropbox*) present_terminal omarchy-install-dropbox ;;
   *Tailscale*) present_terminal omarchy-install-tailscale ;;
   *Bitwarden*) install_and_launch "Bitwarden" "bitwarden bitwarden-cli" "bitwarden" ;;
   *Chromium*) present_terminal omarchy-install-chromium-google-account ;;
+  *Russmedia*) present_terminal "omarchy-app-install 'Russmedia VPN' 'pkexec omarchy-pondhouse-launch-russmedia-vpn' 'https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/cisco.png'" ;;
   *) show_install_menu ;;
   esac
 }
