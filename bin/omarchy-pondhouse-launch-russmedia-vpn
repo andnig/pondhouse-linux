@@ -1,11 +1,5 @@
 #!/bin/bash
 
-# Check if cisco-secure-client is installed
-if ! command -v cisco-secure-client &> /dev/null; then
-    echo "Cisco Secure Client not found. Installing..."
-    yay -S cisco-secure-client
-fi
-
 # Run setup tasks with elevated privileges (single prompt)
 # This handles: creating profile directory, profile file, and starting service
 pkexec omarchy-pondhouse-init-russmedia-vpn-helper
