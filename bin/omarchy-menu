@@ -256,7 +256,7 @@ show_install_service_menu() {
   *Tailscale*) present_terminal omarchy-install-tailscale ;;
   *Bitwarden*) install_and_launch "Bitwarden" "bitwarden bitwarden-cli" "bitwarden" ;;
   *Chromium*) present_terminal omarchy-install-chromium-google-account ;;
-  *Russmedia*) present_terminal "omarchy-app-install 'Russmedia VPN' 'pkexec omarchy-pondhouse-launch-russmedia-vpn' 'https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/cisco.png'" ;;
+  *Russmedia*) present_terminal "omarchy-pondhouse-install-russmedia-vpn" ;;
   *) show_install_menu ;;
   esac
 }

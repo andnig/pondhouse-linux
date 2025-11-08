@@ -5,6 +5,9 @@
 # (don't mess with these directly, just overwrite them here!)
 source ~/.local/share/omarchy/default/bash/rc
 
+export PATH=$HOME/.npm-global/bin:$PATH
+export PATH=$HOME/.local/share/mise/installs/node/latest/bin:$PATH
+
 # Add your own exports, aliases, and functions here.
 #
 # Make an alias for invoking commands you use constantly

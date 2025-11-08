@@ -1,0 +1,4 @@
+yay -S cisco-secure-client --noconfirm
+sudo pacman -Syu --noconfirm webkit2gtk
+
+omarchy-app-install 'Russmedia VPN' 'omarchy-pondhouse-launch-russmedia-vpn' 'https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/cisco.png'
