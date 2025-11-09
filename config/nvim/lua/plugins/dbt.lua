@@ -1,7 +1,7 @@
 return {
     {
         "PedramNavid/dbtpal",
-        dependencies = { "nvim-lua/plenary.nvim", "nvim-telescope/telescope.nvim" },
+        dependencies = { "nvim-lua/plenary.nvim" },
         ft = {
             "sql",
             "dbt",
@@ -38,15 +38,6 @@ return {
                 "<cmd>!sqlfluff fix % -f <CR> --templater dbt",
                 { desc = "Fix SQL" }
             )
-            vim.keymap.set(
-                "n",
-                "<localleader>dm",
-                require("dbtpal.telescope").dbt_picker,
-                { desc = "dbt picker" }
-            )
-
-            -- Enable Telescope Extension
-            require("telescope").load_extension("dbtpal")
         end,
     },
 }
