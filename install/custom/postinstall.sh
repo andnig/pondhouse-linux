@@ -49,6 +49,12 @@ if echo "$selected" | grep -q "VSCode"; then
   for mimetype in text/english text/plain text/x-makefile text/x-c++hdr text/x-c++src text/x-chdr text/x-csrc text/x-java text/x-moc text/x-pascal text/x-tcl text/x-tex application/x-shellscript text/x-c text/x-c++; do
     xdg-mime default code.desktop "$mimetype"
   done
+  if ! grep -q 'export EDITOR=' "$HOME/.zshrc"; then
+    echo "export EDITOR='code --wait'" >> "$HOME/.zshrc"
+  fi
+  if ! grep -q 'export EDITOR=' "$HOME/.bashrc"; then
+    echo "export EDITOR='code --wait'" >> "$HOME/.bashrc"
+  fi
 fi
 
 if echo "$selected" | grep -q "Cursor"; then
@@ -57,6 +63,12 @@ if echo "$selected" | grep -q "Cursor"; then
   for mimetype in text/english text/plain text/x-makefile text/x-c++hdr text/x-c++src text/x-chdr text/x-csrc text/x-java text/x-moc text/x-pascal text/x-tcl text/x-tex application/x-shellscript text/x-c text/x-c++; do
     xdg-mime default cursor.desktop "$mimetype"
   done
+  if ! grep -q 'export EDITOR=' "$HOME/.zshrc"; then
+    echo "export EDITOR='cursor --wait'" >> "$HOME/.zshrc"
+  fi
+  if ! grep -q 'export EDITOR=' "$HOME/.bashrc"; then
+    echo "export EDITOR='cursor --wait'" >> "$HOME/.bashrc"
+  fi
 fi
 
 if echo "$selected" | grep -q "Brave Browser"; then
