@@ -89,7 +89,7 @@ autoload -Uz compinit && compinit
 # Manual plugin loading
 source /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.plugin.zsh
 source /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.plugin.zsh
-source /usr/share/zsh/plugins/zsh-vi-mode/zsh-vi-mode.plugin.zsh
+# source /usr/share/zsh/plugins/zsh-vi-mode/zsh-vi-mode.plugin.zsh
 # check if the tmux plugin exists before sourcing it. If not, tell user to
 # run postinstall.sh via menu -> setup -> postinstall
 if [ ! -f ~/.zsh/plugins/tmux/tmux.plugin.zsh ]; then
