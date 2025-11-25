@@ -34,6 +34,7 @@
       "7": "󰺘",
       "8": "8",
       "9": "9",
+      "10": "0",
     },
     "persistent-workspaces": {
       "1": [],
@@ -47,7 +48,7 @@
     "format": "<span font='omarchy'>\ue900</span>",
     "on-click": "omarchy-menu",
     "on-click-right": "xdg-terminal-exec",
-    "tooltip-format": "Omarchy Menu\n\nSuper + Alt + Space"
+    "tooltip-format": "Omarchy Menu\n\nSuper + Alt + Space",
   },
   "custom/update": {
     "format": "",
@@ -55,19 +56,19 @@
     "on-click": "omarchy-launch-floating-terminal-with-presentation omarchy-update",
     "tooltip-format": "Omarchy update available",
     "signal": 7,
-    "interval": 21600
+    "interval": 21600,
   },
   "custom/devices-battery": {
     "exec": "omarchy-peripherals-battery-status",
     "return-type": "json",
     "interval": 30,
     "format": "{}",
-    "tooltip": true
+    "tooltip": true,
   },
   "cpu": {
     "interval": 5,
     "format": "󰍛",
-    "on-click": "xdg-terminal-exec btop"
+    "on-click": "omarchy-launch-or-focus-tui btop",
   },
   "custom/calendar": {
     "format": "󰃰",
@@ -116,13 +117,14 @@
   "bluetooth": {
     "format": "",
     "format-disabled": "󰂲",
-    "format-connected": "",
+    "format-connected": "󰂱",
+    "format-no-controller": "",
     "tooltip-format": "Devices connected: {num_connections}",
-    "on-click": "blueberry",
+    "on-click": "omarchy-launch-bluetooth",
   },
   "pulseaudio": {
     "format": "{icon}",
-    "on-click": "xdg-terminal-exec --app-id=com.omarchy.Wiremix -e wiremix",
+    "on-click": "omarchy-launch-or-focus-tui wiremix",
     "on-click-right": "pamixer -t",
     "tooltip-format": "Playing at {volume}%",
     "scroll-step": 5,
@@ -166,7 +168,7 @@
     "on-click": "omarchy-toggle-idle",
   },
   "custom/expand-icon": {
-    "format": "",
+    "format": "",
     "tooltip": false,
   },
   "custom/screenrecording-indicator": {
