@@ -216,6 +216,10 @@ if command -v zoxide &> /dev/null; then
   eval "$(zoxide init zsh)"
 fi
 
+if command -v try &> /dev/null; then
+  eval "$(try init ~/Work/tries)"
+fi
+
 # 1Password
 eval "$(op completion zsh)"; compdef _op op
 # sign in to 1Password account if not already signed in
