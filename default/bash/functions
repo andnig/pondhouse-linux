@@ -1,3 +1,11 @@
+# Database connection
+dbconnect() {
+  local envfile="${1:-.env}"
+  [[ -f "$envfile" ]] || { echo "File not found: $envfile" >&2; return 1; }
+  local url=$(grep -E '^DATABASE_URL=' "$envfile" | cut -d '=' -f2- | tr -d '"'"'")
+  [[ -n "$url" ]] || { echo "DATABASE_URL not found in $envfile" >&2; return 1; }
+  psql "$url"
+}
 # Compression
 compress() { tar -czf "${1%/}.tar.gz" "${1%/}"; }
 alias decompress="tar -xzf"
