@@ -2,6 +2,9 @@ source ~/source/shell
 source ~/.local/share/omarchy/default/bash/functions
 source ~/source/custom-functions
 
+bindkey "^?" backward-delete-char
+bindkey "^[[3~" delete-char
+
 if [[ -n "$KITTY_INSTALLATION_DIR" ]]; then
   export KITTY_SHELL_INTEGRATION="enabled"
   autoload -Uz -- "$KITTY_INSTALLATION_DIR"/shell-integration/zsh/kitty-integration
