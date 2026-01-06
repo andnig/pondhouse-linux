@@ -20,3 +20,5 @@ config/sunshine/
 
 config/windows
 config/omarchy
+
+config/hypr/shaders/
