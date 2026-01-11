@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Define an array of hosts
-HOSTS=("mt.db1" "mt.compute1" "engie.db1" "emco.db1" "emco.compute1")
+HOSTS=("wh.mt.db1" "wh.mt.compute1" "wh.engie.db1" "wh.emco.db1" "wh.emco.compute1")
 
 # Create the command string with proper escaping
 REMOTE_COMMANDS='
@@ -14,6 +14,25 @@ echo ""
 echo "Docker services below target replicas:"
 docker_output=$(docker service ls --format "{{.ID}}\t{{.Name}}\t{{.Mode}}\t{{.Replicas}}" | awk -F"\t" "{split(\$4, a, \"/\"); if (a[1] < a[2]) print \$0}")
 echo "$docker_output"
+echo ""
+echo "pgbackrest backups older than 2 days:"
+tsnode_container=$(docker ps --format "{{.Names}}" | grep tsnode | head -1)
+if [ -n "$tsnode_container" ]; then
+  last_backup_time=$(docker exec "$tsnode_container" pgbackrest info 2>/dev/null | grep "timestamp start/stop" | tail -1 | sed "s/.*timestamp start\/stop: \([0-9-]* [0-9:]*\).*/\1/")
+  if [ -n "$last_backup_time" ]; then
+    last_backup_epoch=$(date -d "$last_backup_time" +%s 2>/dev/null)
+    two_days_ago_epoch=$(date -d "2 days ago" +%s)
+    if [ -n "$last_backup_epoch" ] && [ "$last_backup_epoch" -lt "$two_days_ago_epoch" ]; then
+      echo "WARNING: Last pgbackrest backup is older than 2 days!"
+      echo "  Container: $tsnode_container"
+      echo "  Last backup: $last_backup_time"
+    fi
+  else
+    echo "WARNING: Could not parse pgbackrest backup timestamp"
+  fi
+else
+  echo "INFO: No tsnode container found"
+fi
 echo ""
 echo "=== End of Report ==="
 echo "Press Enter to close..."
