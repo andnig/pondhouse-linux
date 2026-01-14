@@ -1,11 +1,22 @@
 # Compression but zip
 zip_compress() {
-  if [ $# -eq 0 ]; then
-    echo "Usage: zip_compress <directory>"
+  local output=""
+  local inputs=()
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -o|--output) output="$2"; shift 2 ;;
+      *) inputs+=("$1"); shift ;;
+    esac
+  done
+
+  if [ ${#inputs[@]} -eq 0 ]; then
+    echo "Usage: zip_compress [-o output.zip] <file_or_folder> [file_or_folder ...]"
     return 1
   fi
-  local dir="${1%/}"
-  zip -r "${dir}.zip" "$dir"
+
+  [ -z "$output" ] && output="${inputs[0]%/}.zip"
+  zip -r "$output" "${inputs[@]}"
 }
 zip_decompress() {
   if [ $# -eq 0 ]; then
@@ -28,3 +39,59 @@ iso2sd() {
     sudo eject $2
   fi
 }
+
+# copy file to clipboard via wl-clipboard
+cpfile() {
+  local files=()
+  for file in "$@"; do
+    files+=("file://$(realpath "$file")")
+  done
+  printf '%s\n' "${files[@]}" | wl-copy -t text/uri-list
+}
+
+# Database connection
+dbconnect() {
+  local envfile=".env"
+  local script=""
+
+  # Help function
+  _dbconnect_help() {
+    cat <<EOF
+Usage: dbconnect [OPTIONS]
+
+Connect to a PostgreSQL database using DATABASE_URL from an env file.
+
+Options:
+  -e, --env FILE    Env file to read (default: .env)
+  -f, --file FILE   SQL script to execute
+  -h, --help        Show this help message
+
+Examples:
+  dbconnect                           # interactive, uses .env
+  dbconnect -f migrate.sql            # runs script, uses .env
+  dbconnect -e .env.prod              # interactive, uses .env.prod
+  dbconnect -e .env.prod -f seed.sql  # runs script with specific env
+EOF
+  }
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -e|--env) envfile="$2"; shift 2 ;;
+      -f|--file) script="$2"; shift 2 ;;
+      -h|--help) _dbconnect_help; return 0 ;;
+      *) echo "Unknown option: $1" >&2; _dbconnect_help >&2; return 1 ;;
+    esac
+  done
+
+  [[ -f "$envfile" ]] || { echo "File not found: $envfile" >&2; return 1; }
+  local url=$(grep -E '^DATABASE_URL=' "$envfile" | cut -d '=' -f2- | tr -d '"'"'")
+  [[ -n "$url" ]] || { echo "DATABASE_URL not found in $envfile" >&2; return 1; }
+
+  if [[ -n "$script" ]]; then
+    [[ -f "$script" ]] || { echo "Script not found: $script" >&2; return 1; }
+    psql "$url" -f "$script"
+  else
+    psql "$url"
+  fi
+}
+

@@ -4,6 +4,7 @@
 # All the default Omarchy aliases and functions
 # (don't mess with these directly, just overwrite them here!)
 source ~/.local/share/omarchy/default/bash/rc
+source ~/source/custom-functions
 
 export PATH=$HOME/.npm-global/bin:$PATH
 export PATH=$HOME/.local/share/mise/installs/node/latest/bin:$PATH
