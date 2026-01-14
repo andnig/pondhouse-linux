@@ -30,7 +30,7 @@
 }
 
 #workspaces button.active {
-  color: @activec;
+  color: #87c0ff;
 }
 
 #tray,
