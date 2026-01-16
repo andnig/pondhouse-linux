@@ -71,19 +71,6 @@ vim.api.nvim_set_keymap(
     { noremap = true, silent = true, desc = "Format with biome" }
 )
 
-vim.keymap.set(
-    "v",
-    "<leader>ae",
-    "<cmd>lua require('chatgpt').edit_with_instructions()<CR>",
-    { desc = "Edit with ChatGPT with instructions" }
-)
-vim.keymap.set(
-    { "n", "v" },
-    "<leader>ac",
-    "<cmd>lua require('chatgpt').openChat()<CR>",
-    { desc = "Open ChatGPT" }
-)
-
 -- vim.keymap.set("n", "<c-k>", ":wincmd k<CR>", { desc = "Navigate pane up" })
 -- vim.keymap.set("n", "<c-j>", ":wincmd j<CR>", { desc = "Navigate pane down" })
 -- vim.keymap.set("n", "<c-h>", ":wincmd h<CR>", { desc = "Navigate pane left" })
