@@ -1,4 +1,15 @@
 return {
+    "folke/sidekick.nvim",
+    keys = {
+        {
+            "<leader>ao",
+            function()
+                require("sidekick.cli").toggle({ name = "opencode", focus = true })
+            end,
+            desc = "Sidekick Toggle OpenCode",
+        },
+    },
+
     -- custom config which piggybacks on the copilot extras in lazy.lua.
     -- {
     --     "yetone/avante.nvim",

@@ -21,7 +21,6 @@ require("lazy").setup({
         { import = "lazyvim.plugins.extras.formatting.black" },
         { import = "lazyvim.plugins.extras.formatting.prettier" },
         { import = "lazyvim.plugins.extras.dap.core" },
-        { import = "lazyvim.plugins.extras.ai.copilot" },
         { import = "lazyvim.plugins.extras.editor.harpoon2" },
         { import = "lazyvim.plugins.extras.editor.illuminate" },
         { import = "lazyvim.plugins.extras.editor.mini-move" },
@@ -33,6 +32,9 @@ require("lazy").setup({
         { import = "lazyvim.plugins.extras.editor.snacks_picker" },
         { import = "lazyvim.plugins.extras.editor.snacks_explorer" },
         { import = "lazyvim.plugins.extras.coding.yanky" },
+        { import = "lazyvim.plugins.extras.ai.copilot-native" },
+        { import = "lazyvim.plugins.extras.ai.sidekick" },
+        -- { import = "lazyvim.plugins.extras.ai.copilot" },
         -- { import = "lazyvim.plugins.extras.ui.mini-animate" },
         -- import/override with your plugins
         { import = "plugins" },
