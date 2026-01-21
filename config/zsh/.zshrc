@@ -114,9 +114,10 @@ fi
 # Preferred editor for local and remote sessions
 if [[ -n $SSH_CONNECTION ]]; then
   export EDITOR='vim'
-else
-  export EDITOR='nvim'
-  export SUDO_EDITOR="$EDITOR"
+# else
+#   Editor set in other ways
+#   export EDITOR='nvim'
+#   export SUDO_EDITOR="$EDITOR"
 fi
 
 # Compilation flags
