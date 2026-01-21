@@ -6,6 +6,9 @@
 # chmod +x all files in folder ~/scripts
 chmod -R +x "$HOME/scripts"
 
+# Install calcure
+pipx install calcure
+
 # Install zsh and tmux plugins
 gum style --foreground 212 --bold "Installing zsh and tmux plugins..."
 rm -rf $HOME/.tmux/plugins || true
@@ -50,10 +53,10 @@ if echo "$selected" | grep -q "VSCode"; then
     xdg-mime default code.desktop "$mimetype"
   done
   if ! grep -q 'export EDITOR=' "$HOME/.zshrc"; then
-    echo "export EDITOR='code --wait'" >> "$HOME/.zshrc"
+    echo "export EDITOR='code --wait'" >>"$HOME/.zshrc"
   fi
   if ! grep -q 'export EDITOR=' "$HOME/.bashrc"; then
-    echo "export EDITOR='code --wait'" >> "$HOME/.bashrc"
+    echo "export EDITOR='code --wait'" >>"$HOME/.bashrc"
   fi
 fi
 
@@ -64,10 +67,10 @@ if echo "$selected" | grep -q "Cursor"; then
     xdg-mime default cursor.desktop "$mimetype"
   done
   if ! grep -q 'export EDITOR=' "$HOME/.zshrc"; then
-    echo "export EDITOR='cursor --wait'" >> "$HOME/.zshrc"
+    echo "export EDITOR='cursor --wait'" >>"$HOME/.zshrc"
   fi
   if ! grep -q 'export EDITOR=' "$HOME/.bashrc"; then
-    echo "export EDITOR='cursor --wait'" >> "$HOME/.bashrc"
+    echo "export EDITOR='cursor --wait'" >>"$HOME/.bashrc"
   fi
 fi
 
