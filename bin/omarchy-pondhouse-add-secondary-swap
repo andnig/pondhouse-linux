@@ -1,0 +1,39 @@
+#!/bin/bash
+
+# Adds a secondary swap file for additional memory capacity.
+# Checks for existing file-based swap (ignores zram) and creates
+# a btrfs-compatible swapfile if none exists.
+
+SWAP_FILE="/swapfile"
+SWAP_SIZE="20G"
+
+# Check for existing file-based swap (exclude zram devices)
+existing_swap=$(swapon --show=NAME,TYPE --noheadings | grep -v zram | grep -v '\[SWAP\]')
+
+if [[ -n "$existing_swap" ]]; then
+  echo "File-based swap already exists:"
+  swapon --show | grep -v zram
+  exit 0
+fi
+
+echo "No file-based swap found. Creating $SWAP_SIZE swap at $SWAP_FILE..."
+
+# Create swapfile with btrfs compatibility (chattr +C for no copy-on-write)
+sudo truncate -s 0 "$SWAP_FILE"
+sudo chattr +C "$SWAP_FILE"
+sudo fallocate -l "$SWAP_SIZE" "$SWAP_FILE"
+sudo chmod 600 "$SWAP_FILE"
+sudo mkswap "$SWAP_FILE"
+
+# Enable swap with low priority (zram should remain primary)
+sudo swapon -p 1 "$SWAP_FILE"
+
+# Add to fstab for persistence
+if ! grep -Fq "$SWAP_FILE" /etc/fstab; then
+  echo "Adding swapfile to /etc/fstab"
+  echo "$SWAP_FILE none swap defaults,pri=1 0 0" | sudo tee -a /etc/fstab
+fi
+
+echo ""
+echo "Swap configured successfully:"
+swapon --show
