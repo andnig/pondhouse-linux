@@ -6,6 +6,9 @@
 # chmod +x all files in folder ~/scripts
 chmod -R +x "$HOME/scripts"
 
+# Install calcure
+pipx install calcure
+
 # Install zsh and tmux plugins
 gum style --foreground 212 --bold "Installing zsh and tmux plugins..."
 rm -rf $HOME/.tmux/plugins || true
@@ -49,11 +52,8 @@ if echo "$selected" | grep -q "VSCode"; then
   for mimetype in text/english text/plain text/x-makefile text/x-c++hdr text/x-c++src text/x-chdr text/x-csrc text/x-java text/x-moc text/x-pascal text/x-tcl text/x-tex application/x-shellscript text/x-c text/x-c++; do
     xdg-mime default code.desktop "$mimetype"
   done
-  if ! grep -q 'export EDITOR=' "$HOME/.zshrc"; then
-    echo "export EDITOR='code --wait'" >> "$HOME/.zshrc"
-  fi
-  if ! grep -q 'export EDITOR=' "$HOME/.bashrc"; then
-    echo "export EDITOR='code --wait'" >> "$HOME/.bashrc"
+  if gum confirm "Make VSCode the default terminal editor?"; then
+    sed -i "s|^export EDITOR=.*|export EDITOR='code --wait'|" "$HOME/.local/share/omarchy/config/uwsm/default"
   fi
 fi
 
@@ -63,11 +63,8 @@ if echo "$selected" | grep -q "Cursor"; then
   for mimetype in text/english text/plain text/x-makefile text/x-c++hdr text/x-c++src text/x-chdr text/x-csrc text/x-java text/x-moc text/x-pascal text/x-tcl text/x-tex application/x-shellscript text/x-c text/x-c++; do
     xdg-mime default cursor.desktop "$mimetype"
   done
-  if ! grep -q 'export EDITOR=' "$HOME/.zshrc"; then
-    echo "export EDITOR='cursor --wait'" >> "$HOME/.zshrc"
-  fi
-  if ! grep -q 'export EDITOR=' "$HOME/.bashrc"; then
-    echo "export EDITOR='cursor --wait'" >> "$HOME/.bashrc"
+  if gum confirm "Make Cursor the default terminal editor?"; then
+    sed -i "s|^export EDITOR=.*|export EDITOR='cursor --wait'|" "$HOME/.local/share/omarchy/config/uwsm/default"
   fi
 fi
 
