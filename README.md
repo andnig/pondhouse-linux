@@ -292,6 +292,19 @@ Copy the whole content of the profile folder to backup.
 
 To restore, copy the content back to the profile folder.
 
+## Setting up a private pondhouse-linux fork
+
+Most probably you'd want to customize some settings. For that, you want to:
+
+1. Create a new repository on Github.
+2. Run `git remote add custom <your-repository-url>` in the pondhouse-linux/omarchy repository.
+3. Run `git config remote.pushDefault custom` to set the default push remote to your custom repository.
+4. Run `git pull custom master` to pull your latest custom changes
+
+Now all pushes per default go to your custom repository. Pulls are still from
+the original repository, meaning also updates are only pulled from the original
+repository.
+
 ## License
 
 Omarchy is released under the [MIT License](https://opensource.org/licenses/MIT).
