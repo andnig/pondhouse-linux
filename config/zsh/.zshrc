@@ -111,6 +111,13 @@ fi
 # You may need to manually set your language environment
 # export LANG=en_US.UTF-8
 
+# When inside tmux, import desktop session vars from systemd user environment.
+# Tmux server may have started from SSH or other context lacking these.
+if [[ -n "$TMUX" ]] && command -v systemctl &>/dev/null; then
+  eval "$(systemctl --user show-environment 2>/dev/null | grep -E '^(OMARCHY_PATH|HYPRLAND_INSTANCE_SIGNATURE|WAYLAND_DISPLAY|DISPLAY|XDG_CURRENT_DESKTOP|XDG_SESSION_TYPE|XDG_SESSION_DESKTOP)=')"
+  [[ -n "$OMARCHY_PATH" ]] && export PATH="$OMARCHY_PATH/bin:$PATH"
+fi
+
 # Preferred editor for local and remote sessions
 if [[ -n $SSH_CONNECTION ]]; then
   export EDITOR='vim'
