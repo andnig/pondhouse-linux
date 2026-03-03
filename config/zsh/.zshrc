@@ -139,6 +139,9 @@ fi
 # alias zshconfig="mate ~/.zshrc"
 # alias ohmyzsh="mate ~/.oh-my-zsh"
 
+
+alias t='tmux attach || tmux new -s Work'
+
 alias jq="sed -E 's/[\x00-\x1F\x7F]//g' | tr -d '\000-\037' | jq"
 
 alias ssh="TERM=screen ssh"
