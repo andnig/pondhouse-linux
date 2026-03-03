@@ -1,0 +1,41 @@
+#!/bin/bash
+
+set -e
+
+# Initialize custom repository remotes for pondhouse-linux.
+
+ORIGIN_URL=$(gum input --prompt "Origin URL> " --placeholder "git@github.com:user/repo.git")
+
+if [[ -z $ORIGIN_URL ]]; then
+  echo "No URL provided. Aborting."
+  exit 1
+fi
+
+PONDHOUSE_URL="git@github.com:andnig/pondhouse-linux.git"
+
+# Get current remotes
+remotes=$(git -C $OMARCHY_PATH remote)
+
+# Set origin remote
+if echo "$remotes" | grep -q "^origin$"; then
+  git -C $OMARCHY_PATH remote set-url origin "$ORIGIN_URL"
+else
+  git -C $OMARCHY_PATH remote add origin "$ORIGIN_URL"
+fi
+
+# Set pondhouse remote
+if echo "$remotes" | grep -q "^pondhouse$"; then
+  git -C $OMARCHY_PATH remote set-url pondhouse "$PONDHOUSE_URL"
+else
+  git -C $OMARCHY_PATH remote add pondhouse "$PONDHOUSE_URL"
+fi
+
+# Remove all other remotes
+for remote in $remotes; do
+  if [[ $remote != "origin" && $remote != "pondhouse" ]]; then
+    git -C $OMARCHY_PATH remote remove "$remote"
+  fi
+done
+
+# Reset push default to origin
+git -C $OMARCHY_PATH config remote.pushDefault origin

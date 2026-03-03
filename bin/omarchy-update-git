@@ -4,5 +4,44 @@ set -e
 
 echo -e "\e[32mUpdate Omarchy\e[0m"
 
-git -C $OMARCHY_PATH pull --autostash
-git -C $OMARCHY_PATH --no-pager diff --check || git -C $OMARCHY_PATH reset --merge
+branch=$(git -C $OMARCHY_PATH branch --show-current)
+
+if git -C $OMARCHY_PATH remote | grep -q "^pondhouse$"; then
+  # Custom fork: merge base updates from pondhouse, then sync custom changes from origin
+
+  echo "Fetching updates from pondhouse..."
+  git -C $OMARCHY_PATH fetch pondhouse
+
+  if ! git -C $OMARCHY_PATH merge --no-edit --autostash pondhouse/$branch; then
+    echo ""
+    echo -e "\e[31mMerge conflict with pondhouse/$branch.\e[0m"
+    echo ""
+    echo "Your custom changes conflict with upstream updates."
+    echo "Resolve the conflicts, then run:"
+    echo "  cd $OMARCHY_PATH"
+    echo "  git add -A && git commit"
+    echo "  omarchy-update"
+    echo ""
+    echo "To abort and revert: git -C $OMARCHY_PATH merge --abort"
+    exit 1
+  fi
+
+  echo "Fetching updates from origin..."
+  if ! git -C $OMARCHY_PATH pull --no-edit --autostash origin $branch; then
+    echo ""
+    echo -e "\e[31mMerge conflict with origin/$branch.\e[0m"
+    echo ""
+    echo "Your local changes conflict with your custom remote."
+    echo "Resolve the conflicts, then run:"
+    echo "  cd $OMARCHY_PATH"
+    echo "  git add -A && git commit"
+    echo "  omarchy-update"
+    echo ""
+    echo "To abort and revert: git -C $OMARCHY_PATH merge --abort"
+    exit 1
+  fi
+else
+  # Standard repo: pull from default remote
+  git -C $OMARCHY_PATH pull --autostash
+  git -C $OMARCHY_PATH --no-pager diff --check || git -C $OMARCHY_PATH reset --merge
+fi
