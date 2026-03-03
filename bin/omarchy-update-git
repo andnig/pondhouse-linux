@@ -40,6 +40,9 @@ if git -C $OMARCHY_PATH remote | grep -q "^pondhouse$"; then
     echo "To abort and revert: git -C $OMARCHY_PATH merge --abort"
     exit 1
   fi
+
+  # Push merged state to origin so other machines stay in sync
+  git -C $OMARCHY_PATH push origin $branch
 else
   # Standard repo: pull from default remote
   git -C $OMARCHY_PATH pull --autostash
