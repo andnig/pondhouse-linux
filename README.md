@@ -297,6 +297,21 @@ To restore, copy the content back to the profile folder.
 Most probably you'd want to customize some settings. For that, you want to:
 
 1. Create a new repository on Github.
+2. Run `omarchy-init-custom-repo`
+
+This will set up your custom repository as the default origin and a `pondhouse`
+remote pointing to the original repository.
+
+From there, you can use the `omarchy-update` or `omarchy-update-git` commands
+as normal to pull from both the original repository and your custom repository.
+When pushing, your changes will be pushed to your custom repository, while you
+can still pull updates from the original repository.
+
+### Outdated
+
+> The following section is outdated. Use the script above.
+
+1. Create a new repository on Github.
 2. Run `git remote add custom <your-repository-url>` in the pondhouse-linux/omarchy repository.
 3. Run `git config remote.pushDefault custom` to set the default push remote to your custom repository.
 4. Run `git pull custom master` to pull your latest custom changes
