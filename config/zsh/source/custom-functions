@@ -95,3 +95,90 @@ EOF
   fi
 }
 
+
+# Start opencode server on 0.0.0.0 with password (or report if already running)
+opencode-serve() {
+  if [[ "$1" == "-h" || "$1" == "--help" ]]; then
+    echo "Usage: opencode-serve [port] [password]"
+    echo "Start opencode server on 0.0.0.0 with HTTP basic auth"
+    echo "  port:     Port to listen on (default: 4096)"
+    echo "  password: Server password (prompted if not provided)"
+    echo "Reports if server is already running"
+    return 0
+  fi
+
+  local port="${1:-4096}"
+  local password="$2"
+
+  if ss -tuln | grep -q ":${port} "; then
+    if pgrep -f "opencode serve" > /dev/null; then
+      echo "opencode server already running on port ${port}"
+    else
+      echo "Port ${port} is in use by another process"
+      ss -tulnp | grep ":${port} "
+    fi
+  else
+    if [[ -z "$password" ]]; then
+      read -rsp "Server password: " password
+      echo
+    fi
+    OPENCODE_SERVER_PASSWORD="$password" opencode serve --hostname 0.0.0.0 --port "$port"
+  fi
+}
+
+# Attach to running opencode server
+opencode-attach() {
+  if [[ "$1" == "-h" || "$1" == "--help" ]]; then
+    echo "Usage: opencode-attach [url] [password]"
+    echo "Attach TUI to running opencode server"
+    echo "  url:      Server URL (default: http://127.0.0.1:4096)"
+    echo "  password: Server password (prompted if not provided)"
+    return 0
+  fi
+
+  local url="${1:-http://127.0.0.1:4096}"
+  local password="$2"
+
+  if [[ -z "$password" ]]; then
+    read -rsp "Server password: " password
+    echo
+  fi
+  OPENCODE_SERVER_PASSWORD="$password" opencode attach "$url"
+}
+
+# Create a new worktree and branch from within current git directory.
+create_worktree() {
+  if [[ -z "$1" ]]; then
+    echo "Usage: ga [branch name]"
+    exit 1
+  fi
+
+  local branch="$1"
+  local base="$(basename "$PWD")"
+  local local_path="../${base}--${branch}"
+
+  git worktree add -b "$branch" "$local_path"
+  mise trust "$local_path"
+  cd "$local_path"
+}
+
+# Remove worktree and branch from within active worktree directory.
+delete_worktree() {
+  if gum confirm "Remove worktree and branch?"; then
+    local cwd base branch root
+
+    cwd="$(pwd)"
+    worktree="$(basename "$cwd")"
+
+    # split on first `--`
+    root="${worktree%%--*}"
+    branch="${worktree#*--}"
+
+    # Protect against accidentially nuking a non-worktree directory
+    if [[ "$root" != "$worktree" ]]; then
+      cd "../$root"
+      git worktree remove "$worktree" --force
+      git branch -D "$branch"
+    fi
+  fi
+}
