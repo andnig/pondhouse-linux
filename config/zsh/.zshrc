@@ -32,9 +32,9 @@ source /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.pl
 # You may need to manually set your language environment
 # export LANG=en_US.UTF-8
 
-# When inside tmux, import desktop session vars from systemd user environment.
-# Tmux server may have started from SSH or other context lacking these.
-if [[ -n "$TMUX" ]] && command -v systemctl &>/dev/null; then
+# Import desktop session vars from systemd user environment.
+# Needed in tmux (server may lack these) and SSH sessions alike.
+if command -v systemctl &>/dev/null; then
   eval "$(systemctl --user show-environment 2>/dev/null | grep -E '^(OMARCHY_PATH|HYPRLAND_INSTANCE_SIGNATURE|WAYLAND_DISPLAY|DISPLAY|XDG_CURRENT_DESKTOP|XDG_SESSION_TYPE|XDG_SESSION_DESKTOP)=')"
   [[ -n "$OMARCHY_PATH" ]] && export PATH="$OMARCHY_PATH/bin:$PATH"
 fi
@@ -65,7 +65,7 @@ alias t='tmux attach || tmux new -s Work'
 
 alias jq="sed -E 's/[\x00-\x1F\x7F]//g' | tr -d '\000-\037' | jq"
 
-alias ssh="TERM=screen ssh"
+alias ssh="TERM=xterm-256color ssh"
 alias vim=nvim
 
 alias fo=find_and_open.sh
