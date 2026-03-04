@@ -208,8 +208,4 @@ eval "$(uv generate-shell-completion zsh)"
 # For QEMU/KVM libvirt
 export LIBVIRT_DEFAULT_URI='qemu:///system'
 
-# Auto-attach tmux on interactive login, but not over SSH or if already in tmux
-if [[ -z $SSH_CONNECTION && -z $TMUX ]]; then
-  tmux attach || tmux new -s Work
-fi
 
