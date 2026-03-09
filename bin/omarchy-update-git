@@ -8,6 +8,7 @@ branch=$(git -C $OMARCHY_PATH branch --show-current)
 
 if git -C $OMARCHY_PATH remote | grep -q "^pondhouse$"; then
   # Custom fork: merge base updates from pondhouse, then sync custom changes from origin
+  omarchy-update-time
 
   echo "Fetching updates from pondhouse..."
   git -C $OMARCHY_PATH fetch pondhouse
@@ -45,6 +46,8 @@ if git -C $OMARCHY_PATH remote | grep -q "^pondhouse$"; then
   git -C $OMARCHY_PATH push origin $branch
 else
   # Standard repo: pull from default remote
+  omarchy-update-time
+
   git -C $OMARCHY_PATH pull --autostash
   git -C $OMARCHY_PATH --no-pager diff --check || git -C $OMARCHY_PATH reset --merge
 fi
