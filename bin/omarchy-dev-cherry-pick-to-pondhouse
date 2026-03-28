@@ -1,0 +1,96 @@
+#!/bin/bash
+
+set -e
+
+branch=$(git -C $OMARCHY_PATH branch --show-current)
+
+# Fetch latest pondhouse state
+git -C $OMARCHY_PATH fetch pondhouse
+
+# Find commits unique to this custom fork (not in pondhouse, no merges)
+mapfile -t shas < <(git -C $OMARCHY_PATH log --no-merges --format="%H" pondhouse/$branch..HEAD)
+mapfile -t labels < <(git -C $OMARCHY_PATH log --no-merges --format="%h %s" pondhouse/$branch..HEAD)
+
+if (( ${#shas[@]} == 0 )); then
+  echo "No custom commits to cherry-pick."
+  exit 0
+fi
+
+# Let user pick commits (newest on top)
+mapfile -t picked < <(printf "%s\n" "${labels[@]}" | gum choose --no-limit --header "Select commits to push to pondhouse (space to select, enter to confirm):")
+
+if (( ${#picked[@]} == 0 )); then
+  echo "No commits selected."
+  exit 0
+fi
+
+# Map selected labels back to full SHAs
+selected_shas=()
+for pick in "${picked[@]}"; do
+  short_sha=${pick%% *}
+  for i in "${!labels[@]}"; do
+    if [[ ${labels[$i]} == $pick ]]; then
+      selected_shas+=("${shas[$i]}")
+      break
+    fi
+  done
+done
+
+echo ""
+echo "Selected ${#selected_shas[@]} commit(s):"
+for pick in "${picked[@]}"; do
+  echo "  $pick"
+done
+echo ""
+
+if ! gum confirm "Cherry-pick these to pondhouse/$branch and push?"; then
+  echo "Cancelled."
+  exit 0
+fi
+
+# Cherry-pick in chronological order onto detached HEAD from pondhouse, then push
+mapfile -t ordered < <(printf "%s\n" "${selected_shas[@]}" | tac)
+git -C $OMARCHY_PATH checkout pondhouse/$branch --detach
+
+remaining=${#ordered[@]}
+for sha in "${ordered[@]}"; do
+  if ! git -C $OMARCHY_PATH cherry-pick "$sha"; then
+    short=$(git -C $OMARCHY_PATH log -1 --format="%h %s" "$sha")
+    ((remaining--))
+    echo ""
+    echo -e "\e[33mCherry-pick conflict on: $short\e[0m"
+    echo ""
+    echo "Resolve conflicts in $OMARCHY_PATH, then:"
+    echo ""
+    echo "  cd $OMARCHY_PATH"
+    echo "  # fix conflicting files, then:"
+    echo "  git add <resolved files>"
+    echo "  git cherry-pick --continue"
+    if (( remaining > 0 )); then
+      echo ""
+      echo "  # remaining $remaining commit(s) to cherry-pick after this one:"
+      for remaining_sha in "${ordered[@]:$(( ${#ordered[@]} - remaining ))}"; do
+        echo "    $(git -C $OMARCHY_PATH log -1 --format='%h %s' "$remaining_sha")"
+      done
+      echo ""
+      echo "  # cherry-pick them one by one with: git cherry-pick <sha>"
+    fi
+    echo ""
+    echo "When all cherry-picks are done:"
+    echo ""
+    echo "  git -C $OMARCHY_PATH push pondhouse HEAD:$branch"
+    echo "  git -C $OMARCHY_PATH checkout $branch"
+    echo ""
+    echo "To abort everything:"
+    echo ""
+    echo "  git -C $OMARCHY_PATH cherry-pick --abort"
+    echo "  git -C $OMARCHY_PATH checkout $branch"
+    exit 1
+  fi
+done
+
+git -C $OMARCHY_PATH push pondhouse HEAD:$branch
+git -C $OMARCHY_PATH checkout $branch
+
+echo ""
+echo -e "\e[32mDone. ${#selected_shas[@]} commit(s) pushed to pondhouse/$branch.\e[0m"
