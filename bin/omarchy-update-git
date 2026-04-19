@@ -6,6 +6,9 @@ echo -e "\e[32mUpdate Omarchy\e[0m"
 
 branch=$(git -C $OMARCHY_PATH branch --show-current)
 
+# Suppress Hyprland config errors while git updates default config files mid-pull
+hyprctl keyword debug:suppress_errors true &>/dev/null || true
+
 if git -C $OMARCHY_PATH remote | grep -q "^pondhouse$"; then
   # Custom fork: merge base updates from pondhouse, then sync custom changes from origin
   omarchy-update-time
@@ -24,6 +27,7 @@ if git -C $OMARCHY_PATH remote | grep -q "^pondhouse$"; then
     echo "  omarchy-update"
     echo ""
     echo "To abort and revert: git -C $OMARCHY_PATH merge --abort"
+    hyprctl reload &>/dev/null || true
     exit 1
   fi
 
@@ -39,6 +43,7 @@ if git -C $OMARCHY_PATH remote | grep -q "^pondhouse$"; then
     echo "  omarchy-update"
     echo ""
     echo "To abort and revert: git -C $OMARCHY_PATH merge --abort"
+    hyprctl reload &>/dev/null || true
     exit 1
   fi
 
@@ -51,3 +56,5 @@ else
   git -C $OMARCHY_PATH pull --autostash
   git -C $OMARCHY_PATH --no-pager diff --check || git -C $OMARCHY_PATH reset --merge
 fi
+
+hyprctl reload &>/dev/null || true
