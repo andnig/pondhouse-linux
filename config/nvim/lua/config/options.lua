@@ -11,6 +11,11 @@ vim.opt.clipboard = "unnamedplus"
 vim.g.snacks_scroll = false
 vim.g.ai_cmp = false
 
+if vim.env.SSH_CONNECTION then
+    vim.g.clipboard = "osc52"
+    vim.opt.clipboard = "unnamedplus"
+end
+
 vim.opt.shiftwidth = 2
 vim.opt.tabstop = 2
 vim.opt.softtabstop = 2
