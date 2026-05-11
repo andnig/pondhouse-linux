@@ -1,0 +1,565 @@
+#!/bin/bash
+
+# omarchy:summary=Scan migrations for cp/refresh-config patterns that conflict with the symlink-based install.
+# omarchy:args=[--since REF | --all | --pending] [--json] [--no-color]
+# omarchy:examples=omarchy dev lint-migrations | omarchy dev lint-migrations --since basecamp/master | omarchy dev lint-migrations --pending --json
+
+set -uo pipefail
+
+# ---------- Configuration ----------
+
+# Where the running system expects symlinks to point. This is fixed: it's the
+# install-time target encoded in install/config/config.sh.
+OMARCHY_RUNTIME_PATH="$HOME/.local/share/omarchy"
+
+# Repo path (where this script lives). The linter scans migrations relative to here.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_PATH="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# ---------- Argument parsing ----------
+
+mode="auto"     # auto | all | pending | since
+since_ref=""
+json=false
+use_color=true
+
+print_help() {
+  cat <<'EOF'
+Usage: omarchy-dev-lint-migrations [OPTIONS]
+
+Scan migration scripts for operations that conflict with this fork's
+symlink-based install (install/config/config.sh).
+
+OPTIONS:
+  --since REF     Only scan migrations added/modified in REF..HEAD.
+                  Defaults to $ORIG_HEAD when run from a git hook.
+  --all           Scan every migration in migrations/ (default when no
+                  --since is provided and ORIG_HEAD is unset).
+  --pending       Scan only migrations without a state marker in
+                  ~/.local/state/omarchy/migrations/ (i.e. not yet applied).
+  --json          Emit machine-readable JSON (used by
+                  omarchy-dev-autopatch-migrations).
+  --no-color      Disable ANSI color codes.
+  -h, --help      Show this help.
+
+EXIT CODES:
+  0   No problems detected.
+  1   One or more problems found.
+  2   Invalid usage / runtime error.
+
+PROBLEM CLASSES:
+  BREAKS-SYMLINK        cp -R/-Rpf into the symlinked dir itself - replaces symlink with real dir.
+  WRITES-INTO-REPO      cp/tee into a file under a symlinked dir - write lands in source repo via the symlink.
+  ALREADY-SHADOWED      Target subdir is already a real dir/file (symlink already lost).
+  MISSING-SILENT-FAIL   omarchy-refresh-config on a missing/unsymlinked dir; no-op silently fails.
+  MISSING-NEW-DIR       Migration creates a new ~/.config/<X>/ that isn't part of the symlink set yet.
+  OK                    Target is outside ~/.config/, or write is harmless.
+EOF
+}
+
+while (( $# > 0 )); do
+  case "$1" in
+    --since)
+      mode="since"
+      since_ref="${2:-}"
+      if [[ -z $since_ref ]]; then
+        echo "error: --since requires a git ref" >&2
+        exit 2
+      fi
+      shift 2
+      ;;
+    --all)
+      mode="all"
+      shift
+      ;;
+    --pending)
+      mode="pending"
+      shift
+      ;;
+    --json)
+      json=true
+      shift
+      ;;
+    --no-color)
+      use_color=false
+      shift
+      ;;
+    -h|--help)
+      print_help
+      exit 0
+      ;;
+    *)
+      echo "error: unknown argument: $1" >&2
+      print_help >&2
+      exit 2
+      ;;
+  esac
+done
+
+# Auto mode: if ORIG_HEAD exists (post-merge hook), use it; otherwise --all.
+if [[ $mode == "auto" ]]; then
+  if git -C "$REPO_PATH" rev-parse --verify -q ORIG_HEAD >/dev/null; then
+    mode="since"
+    since_ref="ORIG_HEAD"
+  else
+    mode="all"
+  fi
+fi
+
+# Disable color when not a TTY or when --json is on.
+if ! [[ -t 1 ]] || $json; then
+  use_color=false
+fi
+
+# ---------- Colors ----------
+
+if $use_color; then
+  C_RESET=$'\033[0m'
+  C_BOLD=$'\033[1m'
+  C_DIM=$'\033[2m'
+  C_RED=$'\033[31m'
+  C_GREEN=$'\033[32m'
+  C_YELLOW=$'\033[33m'
+  C_BLUE=$'\033[34m'
+  C_GRAY=$'\033[90m'
+else
+  C_RESET=""
+  C_BOLD=""
+  C_DIM=""
+  C_RED=""
+  C_GREEN=""
+  C_YELLOW=""
+  C_BLUE=""
+  C_GRAY=""
+fi
+
+# ---------- Migration selection ----------
+
+select_migrations() {
+  local out=()
+  case "$mode" in
+    all)
+      while IFS= read -r -d '' f; do
+        out+=("$f")
+      done < <(find "$REPO_PATH/migrations" -maxdepth 1 -type f -name '*.sh' -print0 | sort -z)
+      ;;
+    since)
+      # Files added or modified between since_ref..HEAD
+      local f
+      while IFS= read -r f; do
+        [[ -n $f ]] || continue
+        out+=("$REPO_PATH/$f")
+      done < <(git -C "$REPO_PATH" diff --name-only --diff-filter=AM "$since_ref" HEAD -- 'migrations/*.sh' 2>/dev/null | sort)
+      ;;
+    pending)
+      local state_dir="$HOME/.local/state/omarchy/migrations"
+      local f base
+      while IFS= read -r -d '' f; do
+        base=$(basename "$f")
+        if [[ ! -f "$state_dir/$base" && ! -f "$state_dir/skipped/$base" ]]; then
+          out+=("$f")
+        fi
+      done < <(find "$REPO_PATH/migrations" -maxdepth 1 -type f -name '*.sh' -print0 | sort -z)
+      ;;
+  esac
+  printf '%s\n' "${out[@]}"
+}
+
+# ---------- Target classification ----------
+#
+# Given a destination path that appeared inside a migration command,
+# return one of:
+#   OK | WRITES_INTO_REPO | BREAKS_SYMLINK | ALREADY_SHADOWED |
+#   MISSING_NEW_DIR | MISSING_SILENT_FAIL | OUT_OF_SCOPE
+#
+# Together with a top-level dir name for reporting.
+
+# Strip quotes and resolve $HOME / ~ to the literal path.
+expand_path() {
+  local p=$1
+  p=${p//\"/}
+  p=${p//\'/}
+  p=${p/#\$HOME/$HOME}
+  p=${p/#\~/$HOME}
+  # Best-effort: expand $OMARCHY_PATH to the runtime path so we can compare.
+  p=${p//\$OMARCHY_PATH/$OMARCHY_RUNTIME_PATH}
+  echo "$p"
+}
+
+# Returns the first component AFTER ~/.config/ for a path inside ~/.config.
+# Returns empty if path is not inside ~/.config.
+config_topdir() {
+  local p=$1
+  local prefix="$HOME/.config/"
+  if [[ $p == "$prefix"* ]]; then
+    local rest=${p#"$prefix"}
+    echo "${rest%%/*}"
+  fi
+}
+
+# Classify a target path. Echoes "STATUS TOP_LEVEL" (TOP_LEVEL may be empty).
+classify_target() {
+  local raw=$1
+  local op=${2:-cp}        # cp | tee | redirect | refresh
+  local recursive=${3:-no} # yes if cp -R/-r/-a
+
+  local p
+  p=$(expand_path "$raw")
+
+  # Outside ~/.config/ → not our concern.
+  if [[ $p != "$HOME/.config"* && $p != "$HOME/.config" ]]; then
+    echo "OUT_OF_SCOPE "
+    return
+  fi
+
+  local top
+  top=$(config_topdir "$p")
+  # Path is exactly ~/.config/ itself (e.g. `cp x ~/.config/`); use destination basename.
+  if [[ -z $top ]]; then
+    top="" # unknown; treat as new dir
+  fi
+
+  local link_path="$HOME/.config/$top"
+  local expected="$OMARCHY_RUNTIME_PATH/config/$top"
+
+  # No top dir extractable (rare): treat as missing-new.
+  if [[ -z $top ]]; then
+    echo "MISSING_NEW_DIR "
+    return
+  fi
+
+  if [[ -L $link_path ]]; then
+    local target
+    target=$(readlink "$link_path")
+    if [[ $target == "$expected" ]]; then
+      # Symlinked to source. cp -R into the SAME dir path (= link_path) breaks the link.
+      if [[ $op == "cp" && $recursive == "yes" && $p == "$link_path" ]]; then
+        echo "BREAKS_SYMLINK $top"
+        return
+      fi
+      # refresh-config on a healthy symlinked dir is a no-op AND the file already exists via symlink.
+      if [[ $op == "refresh" ]]; then
+        echo "OK $top"
+        return
+      fi
+      # cp/tee/redirect into a file under the symlinked dir: write goes via symlink into the source repo.
+      echo "WRITES_INTO_REPO $top"
+      return
+    else
+      # Symlink pointing somewhere unexpected. Treat conservatively.
+      echo "WRITES_INTO_REPO $top"
+      return
+    fi
+  fi
+
+  if [[ -e $link_path ]]; then
+    # It's a real file/dir. The symlink was already lost (probably by an earlier migration).
+    if [[ $op == "refresh" ]]; then
+      # refresh-config is a no-op in this fork; on a real dir the cp would have worked upstream,
+      # but here nothing happens. User isn't missing content (the dir exists), but it won't be
+      # updated from the source repo on future pulls. Flag as silent fail.
+      echo "MISSING_SILENT_FAIL $top"
+      return
+    fi
+    echo "ALREADY_SHADOWED $top"
+    return
+  fi
+
+  # link_path does not exist at all.
+  if [[ $op == "refresh" ]]; then
+    echo "MISSING_SILENT_FAIL $top"
+  else
+    echo "MISSING_NEW_DIR $top"
+  fi
+}
+
+# ---------- Pattern scanning ----------
+#
+# Per migration file, walk lines and emit "STATUS|LINENO|OP|TOP|RAW_LINE|DEST"
+# for each interesting hit.
+
+scan_migration() {
+  local file=$1
+  local lineno=0
+  local raw
+  # Field separator inside our per-finding records. ASCII Unit Separator (0x1F)
+  # is never present in shell scripts, so it survives even when raw lines
+  # contain pipes, semicolons, etc.
+  local fs=$'\x1f'
+
+  while IFS= read -r raw || [[ -n $raw ]]; do
+    lineno=$((lineno + 1))
+
+    # Skip pure comment lines.
+    local trimmed=${raw#"${raw%%[![:space:]]*}"}
+    if [[ -z $trimmed || $trimmed == \#* ]]; then
+      continue
+    fi
+
+    # --- Pattern A: cp [opts] SRC DEST where DEST mentions ~/.config or $HOME/.config ---
+    # Bash =~ doesn't support \b word boundaries; use (^|space)cp(space|$) instead.
+    if [[ $raw =~ (^|[[:space:]])cp([[:space:]]|$) ]]; then
+      # Detect recursive flag (-r/-R/-a, plus combos like -Rpf)
+      local recursive="no"
+      if [[ $raw =~ [[:space:]]-[a-zA-Z]*[raR][a-zA-Z]*([[:space:]]|$) ]]; then
+        recursive="yes"
+      fi
+
+      # Extract the last whitespace-separated token that looks like a path under ~/.config.
+      # We deliberately match the WHOLE token incl. trailing slashes/wildcards.
+      local dest=""
+      # Use shell parameter expansion + regex to find the last ~/.config* token.
+      # shellcheck disable=SC2001
+      local token
+      for token in $raw; do
+        # Strip surrounding quotes for matching.
+        local bare=${token//\"/}
+        bare=${bare//\'/}
+        if [[ $bare == \~/.config* || $bare == \$HOME/.config* || $bare == "$HOME/.config"* ]]; then
+          dest=$bare
+        fi
+      done
+
+      if [[ -n $dest ]]; then
+        # Skip backup-style cp (source path already inside ~/.config/)
+        local src_token=""
+        # Pull the SOURCE token: it's typically the second-to-last non-flag token before dest.
+        # We approximate by checking if any token before dest is inside ~/.config/.
+        local prev=""
+        local seen_dest=false
+        for token in $raw; do
+          if [[ $token == "$dest" && $seen_dest == false ]]; then
+            seen_dest=true
+            src_token=$prev
+            break
+          fi
+          # Track last non-flag token.
+          if [[ $token != -* ]]; then
+            prev=$token
+          fi
+        done
+        local src_bare=${src_token//\"/}
+        src_bare=${src_bare//\'/}
+        if [[ $src_bare == \~/.config* || $src_bare == \$HOME/.config* || $src_bare == "$HOME/.config"* ]]; then
+          # Both source and dest inside ~/.config → backup or rename, not a config install.
+          :
+        else
+          local result
+          result=$(classify_target "$dest" "cp" "$recursive")
+          local status=${result%% *}
+          local top=${result#* }
+          if [[ $status != "OUT_OF_SCOPE" && $status != "OK" ]]; then
+            printf '%s%s%s%s%s%s%s%s%s%s%s\n' "$status" "$fs" "$lineno" "$fs" "cp" "$fs" "$top" "$fs" "$raw" "$fs" "$dest"
+          fi
+        fi
+      fi
+    fi
+
+    # --- Pattern B: tee/cat redirect into ~/.config ---
+    # Match `tee ~/.config/...`, `cat ... > ~/.config/...`, `>> ~/.config/...`
+    # Note: bash =~ uses ERE; need to match the redirect/tee separately. We do a
+    # broad pre-filter then refine via token walk.
+    local has_redirect_or_tee=false
+    if [[ $raw =~ (^|[[:space:]])tee([[:space:]]|$) ]]; then
+      has_redirect_or_tee=true
+    elif [[ $raw =~ \>+ ]]; then
+      has_redirect_or_tee=true
+    fi
+    if $has_redirect_or_tee && [[ $raw == *".config"* ]]; then
+      # Extract first ~/.config-looking token.
+      local dest=""
+      local token
+      for token in $raw; do
+        local bare=${token//\"/}
+        bare=${bare//\'/}
+        if [[ $bare == \~/.config* || $bare == \$HOME/.config* || $bare == "$HOME/.config"* ]]; then
+          dest=$bare
+          break
+        fi
+      done
+      if [[ -n $dest ]]; then
+        local op="redirect"
+        [[ $raw =~ (^|[[:space:]])tee([[:space:]]|$) ]] && op="tee"
+        local result
+        result=$(classify_target "$dest" "$op" "no")
+        local status=${result%% *}
+        local top=${result#* }
+        if [[ $status != "OUT_OF_SCOPE" && $status != "OK" ]]; then
+          printf '%s%s%s%s%s%s%s%s%s%s%s\n' "$status" "$fs" "$lineno" "$fs" "$op" "$fs" "$top" "$fs" "$raw" "$fs" "$dest"
+        fi
+      fi
+    fi
+
+    # --- Pattern C: omarchy-refresh-config <path> ---
+    if [[ $raw =~ (^|[[:space:]])omarchy-refresh-config[[:space:]]+([^[:space:];]+) ]]; then
+      local cfg=${BASH_REMATCH[2]}
+      # The arg is a relative path like "hypr/foo.conf" → maps to ~/.config/hypr/foo.conf.
+      local dest="$HOME/.config/$cfg"
+      local result
+      result=$(classify_target "$dest" "refresh" "no")
+      local status=${result%% *}
+      local top=${result#* }
+      if [[ $status != "OUT_OF_SCOPE" && $status != "OK" ]]; then
+        printf '%s%s%s%s%s%s%s%s%s%s%s\n' "$status" "$fs" "$lineno" "$fs" "refresh-config" "$fs" "$top" "$fs" "$raw" "$fs" "$dest"
+      fi
+    fi
+
+  done < "$file"
+}
+
+# ---------- Rendering ----------
+
+severity_for() {
+  case "$1" in
+    BREAKS_SYMLINK)        echo "high" ;;
+    MISSING_SILENT_FAIL)   echo "high" ;;
+    WRITES_INTO_REPO)      echo "medium" ;;
+    MISSING_NEW_DIR)       echo "medium" ;;
+    ALREADY_SHADOWED)      echo "low" ;;
+    *)                     echo "info" ;;
+  esac
+}
+
+color_for_status() {
+  case "$1" in
+    BREAKS_SYMLINK|MISSING_SILENT_FAIL) echo "$C_RED" ;;
+    WRITES_INTO_REPO|MISSING_NEW_DIR)   echo "$C_YELLOW" ;;
+    ALREADY_SHADOWED)                   echo "$C_GRAY" ;;
+    *)                                  echo "$C_GREEN" ;;
+  esac
+}
+
+explain_status() {
+  case "$1" in
+    BREAKS_SYMLINK)
+      echo "cp -R into the symlinked dir itself - would replace the symlink with a real directory." ;;
+    WRITES_INTO_REPO)
+      echo "Target dir is a symlink to the source repo - the write lands inside ~/.local/share/omarchy/config/, polluting the working tree." ;;
+    MISSING_SILENT_FAIL)
+      echo "omarchy-refresh-config is a no-op in this fork; ~/.config/\$TOP isn't a symlink, so this silently does nothing and the user is left without the new config." ;;
+    MISSING_NEW_DIR)
+      echo "Creates ~/.config/\$TOP as a real dir - install/config/config.sh hasn't been rerun, so this new package's config won't be tracked via symlinks." ;;
+    ALREADY_SHADOWED)
+      echo "~/.config/\$TOP is already a real dir/file (an earlier migration broke the symlink); this cp keeps it shadowed." ;;
+  esac
+}
+
+# ---------- Main ----------
+
+declare -A counts=(
+  [BREAKS_SYMLINK]=0
+  [WRITES_INTO_REPO]=0
+  [MISSING_SILENT_FAIL]=0
+  [MISSING_NEW_DIR]=0
+  [ALREADY_SHADOWED]=0
+)
+total_files_with_findings=0
+total_findings=0
+
+# Buffer findings for output.
+declare -a findings_buffer=()
+declare -a findings_files=()
+
+mapfile -t MIGRATIONS < <(select_migrations)
+# Drop empty entries from mapfile when select_migrations had no matches.
+clean=()
+for m in "${MIGRATIONS[@]}"; do
+  [[ -n $m && -f $m ]] && clean+=("$m")
+done
+MIGRATIONS=("${clean[@]}")
+
+if (( ${#MIGRATIONS[@]} == 0 )); then
+  if $json; then
+    echo '{"mode":"'"$mode"'","scanned":0,"findings":[],"summary":{"BREAKS_SYMLINK":0,"WRITES_INTO_REPO":0,"MISSING_SILENT_FAIL":0,"MISSING_NEW_DIR":0,"ALREADY_SHADOWED":0}}'
+  else
+    echo "${C_GREEN}No migrations matched the selection (mode=$mode${since_ref:+, since=$since_ref}).${C_RESET}"
+  fi
+  exit 0
+fi
+
+if ! $json; then
+  echo "${C_BOLD}omarchy-dev-lint-migrations${C_RESET} ${C_DIM}(mode=$mode${since_ref:+, since=$since_ref}, scanning ${#MIGRATIONS[@]} migration(s))${C_RESET}"
+  echo
+fi
+
+# JSON output accumulator
+json_findings=""
+
+for migration in "${MIGRATIONS[@]}"; do
+  hits=$(scan_migration "$migration") || true
+  if [[ -z $hits ]]; then
+    continue
+  fi
+  total_files_with_findings=$((total_files_with_findings + 1))
+  rel=${migration#"$REPO_PATH/"}
+
+  if ! $json; then
+    printf '%s%s%s\n' "$C_BOLD" "$rel" "$C_RESET"
+  fi
+
+  while IFS=$'\x1f' read -r status lineno op top raw_line dest; do
+    [[ -z $status ]] && continue
+    total_findings=$((total_findings + 1))
+    counts[$status]=$((counts[$status] + 1))
+
+    if $json; then
+      # Escape for JSON
+      esc_raw=${raw_line//\\/\\\\}
+      esc_raw=${esc_raw//\"/\\\"}
+      esc_raw=${esc_raw//	/\\t}
+      esc_dest=${dest//\\/\\\\}
+      esc_dest=${esc_dest//\"/\\\"}
+      esc_file=${rel//\\/\\\\}
+      esc_file=${esc_file//\"/\\\"}
+      json_findings+="${json_findings:+,}"
+      json_findings+=$(printf '{"file":"%s","line":%s,"status":"%s","operation":"%s","topdir":"%s","destination":"%s","severity":"%s","raw":"%s"}' \
+        "$esc_file" "$lineno" "$status" "$op" "$top" "$esc_dest" "$(severity_for "$status")" "$esc_raw")
+    else
+      color=$(color_for_status "$status")
+      msg=$(explain_status "$status")
+      msg=${msg//\$TOP/$top}
+      printf '  %sL%-4s%s %s%-20s%s  %s%s%s\n' "$C_DIM" "$lineno" "$C_RESET" "$color" "$status" "$C_RESET" "$C_DIM" "($op)" "$C_RESET"
+      printf '         %s%s%s\n' "$C_DIM" "$raw_line" "$C_RESET"
+      printf '         %s%s%s\n' "$color" "$msg" "$C_RESET"
+    fi
+  done <<<"$hits"
+
+  $json || echo
+done
+
+# ---------- Summary ----------
+
+if $json; then
+  printf '{"mode":"%s","since":"%s","scanned":%d,"files_with_findings":%d,"total_findings":%d,"summary":{"BREAKS_SYMLINK":%d,"WRITES_INTO_REPO":%d,"MISSING_SILENT_FAIL":%d,"MISSING_NEW_DIR":%d,"ALREADY_SHADOWED":%d},"findings":[%s]}\n' \
+    "$mode" "$since_ref" "${#MIGRATIONS[@]}" "$total_files_with_findings" "$total_findings" \
+    "${counts[BREAKS_SYMLINK]}" "${counts[WRITES_INTO_REPO]}" "${counts[MISSING_SILENT_FAIL]}" \
+    "${counts[MISSING_NEW_DIR]}" "${counts[ALREADY_SHADOWED]}" "$json_findings"
+else
+  echo "${C_BOLD}Summary${C_RESET} ${C_DIM}($total_findings finding(s) across $total_files_with_findings file(s))${C_RESET}"
+  printf '  %s%-21s%s %d\n' "$C_RED"    "BREAKS_SYMLINK"      "$C_RESET" "${counts[BREAKS_SYMLINK]}"
+  printf '  %s%-21s%s %d\n' "$C_RED"    "MISSING_SILENT_FAIL" "$C_RESET" "${counts[MISSING_SILENT_FAIL]}"
+  printf '  %s%-21s%s %d\n' "$C_YELLOW" "WRITES_INTO_REPO"    "$C_RESET" "${counts[WRITES_INTO_REPO]}"
+  printf '  %s%-21s%s %d\n' "$C_YELLOW" "MISSING_NEW_DIR"     "$C_RESET" "${counts[MISSING_NEW_DIR]}"
+  printf '  %s%-21s%s %d\n' "$C_GRAY"   "ALREADY_SHADOWED"    "$C_RESET" "${counts[ALREADY_SHADOWED]}"
+
+  if (( total_findings > 0 )); then
+    echo
+    echo "${C_BOLD}Next steps${C_RESET}"
+    if [[ $mode == "since" ]]; then
+      echo "  Auto-patch new migrations:   ${C_BLUE}omarchy-dev-autopatch-migrations --since $since_ref${C_RESET}"
+    elif [[ $mode == "pending" ]]; then
+      echo "  Auto-patch pending migrations: ${C_BLUE}omarchy-dev-autopatch-migrations --pending${C_RESET}"
+    else
+      echo "  Auto-patch all flagged migrations: ${C_BLUE}omarchy-dev-autopatch-migrations --all${C_RESET}"
+    fi
+    echo "  Inspect manually:            cat migrations/<file>.sh"
+    echo
+  fi
+fi
+
+# Exit code: 1 if any non-informational finding, 0 otherwise.
+hard_count=$((counts[BREAKS_SYMLINK] + counts[WRITES_INTO_REPO] + counts[MISSING_SILENT_FAIL] + counts[MISSING_NEW_DIR]))
+if (( hard_count > 0 )); then
+  exit 1
+fi
+exit 0

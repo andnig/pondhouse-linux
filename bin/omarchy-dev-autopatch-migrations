@@ -1,0 +1,397 @@
+#!/bin/bash
+
+# omarchy:summary=Use opencode to patch migrations that conflict with the symlink-based install.
+# omarchy:args=[--since REF | --all | --pending] [--yes] [--dry-run] [--include-shadowed] [--model M]
+# omarchy:examples=omarchy dev autopatch-migrations --pending | omarchy dev autopatch-migrations --since basecamp/master --yes
+
+set -uo pipefail
+
+# ---------- Constants / paths ----------
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_PATH="$(cd "$SCRIPT_DIR/.." && pwd)"
+LINTER="$SCRIPT_DIR/omarchy-dev-lint-migrations"
+
+# ---------- Argument parsing ----------
+
+mode_arg=""    # --since REF | --all | --pending  (forwarded to linter)
+since_ref=""
+assume_yes=false
+dry_run=false
+include_shadowed=false
+model=""
+
+print_help() {
+  cat <<'EOF'
+Usage: omarchy-dev-autopatch-migrations [OPTIONS]
+
+Patch migration scripts whose cp / tee / omarchy-refresh-config calls conflict
+with this fork's symlink-based config install. Patches are produced by
+invoking `opencode run` per migration, with a focused prompt that explains
+the symlink contract.
+
+SELECTION (passed straight to the linter):
+  --since REF     Only consider migrations added/modified in REF..HEAD.
+  --pending       Only consider migrations not yet applied (default).
+  --all           Consider every migration in migrations/.
+
+OPTIONS:
+  --include-shadowed  Also patch ALREADY_SHADOWED findings. Off by default;
+                      those migrations have already run on this machine and
+                      patching them now usually has no effect.
+  --yes               Do not prompt before invoking opencode on each migration.
+  --dry-run           Show what would be patched, but do not invoke opencode.
+  --model M           Pass --model M to opencode (e.g. anthropic/claude-opus-4-7).
+  -h, --help          Show this help.
+
+PREREQUISITES:
+  - opencode CLI on PATH (https://opencode.ai)
+  - bin/omarchy-dev-lint-migrations functional
+
+EXIT CODES:
+  0   All targeted migrations patched (or none needed).
+  1   One or more opencode invocations failed.
+  2   Invalid usage / missing prerequisites.
+EOF
+}
+
+while (( $# > 0 )); do
+  case "$1" in
+    --since)
+      mode_arg="--since"
+      since_ref="${2:-}"
+      [[ -z $since_ref ]] && { echo "error: --since requires a ref" >&2; exit 2; }
+      shift 2
+      ;;
+    --all)
+      mode_arg="--all"
+      shift
+      ;;
+    --pending)
+      mode_arg="--pending"
+      shift
+      ;;
+    --yes|-y)
+      assume_yes=true
+      shift
+      ;;
+    --dry-run|-n)
+      dry_run=true
+      shift
+      ;;
+    --include-shadowed)
+      include_shadowed=true
+      shift
+      ;;
+    --model)
+      model="${2:-}"
+      [[ -z $model ]] && { echo "error: --model requires a value" >&2; exit 2; }
+      shift 2
+      ;;
+    -h|--help)
+      print_help
+      exit 0
+      ;;
+    *)
+      echo "error: unknown argument: $1" >&2
+      print_help >&2
+      exit 2
+      ;;
+  esac
+done
+
+# Default selection if none provided: --pending.
+if [[ -z $mode_arg ]]; then
+  mode_arg="--pending"
+fi
+
+# ---------- Prerequisites ----------
+
+if ! command -v opencode >/dev/null 2>&1; then
+  echo "error: opencode CLI not on PATH. Install from https://opencode.ai" >&2
+  exit 2
+fi
+
+if [[ ! -x $LINTER ]]; then
+  echo "error: linter not executable at $LINTER" >&2
+  exit 2
+fi
+
+if ! command -v jq >/dev/null 2>&1; then
+  echo "error: jq is required for parsing linter JSON output" >&2
+  exit 2
+fi
+
+# ---------- Colors ----------
+
+if [[ -t 1 ]]; then
+  C_RESET=$'\033[0m'
+  C_BOLD=$'\033[1m'
+  C_DIM=$'\033[2m'
+  C_RED=$'\033[31m'
+  C_GREEN=$'\033[32m'
+  C_YELLOW=$'\033[33m'
+  C_BLUE=$'\033[34m'
+else
+  C_RESET="" C_BOLD="" C_DIM="" C_RED="" C_GREEN="" C_YELLOW="" C_BLUE=""
+fi
+
+# ---------- Prompt construction ----------
+
+# build_prompt MIGRATION_REL_PATH FINDINGS_JSON_ARRAY
+# Emits the prompt string for opencode on stdout.
+build_prompt() {
+  local migration_rel=$1
+  local findings_json=$2
+
+  # Render findings as a numbered list for the prompt.
+  local findings_text
+  findings_text=$(echo "$findings_json" | jq -r '
+    to_entries
+    | map(
+        "\(.key + 1). line \(.value.line)  [\(.value.status)]  op=\(.value.operation)  topdir=\(.value.topdir)\n"
+        + "   destination: \(.value.destination)\n"
+        + "   raw: \(.value.raw)"
+      )
+    | join("\n\n")
+  ')
+
+  cat <<PROMPT
+You are patching a single migration script in the pondhouse-linux repo to make
+it compatible with this fork's symlink-based config install.
+
+REPO CONTEXT
+============
+- Repo: $REPO_PATH (pondhouse-linux, a customized Omarchy fork).
+- install/config/config.sh in this fork replaces upstream's
+  \`cp -R ~/.local/share/omarchy/config/* ~/.config/\` with a per-entry
+  \`ln -sfn ~/.local/share/omarchy/config/<X> ~/.config/<X>\` loop, so every
+  top-level entry in config/ becomes a symlink into the source tree on disk.
+- bin/omarchy-refresh-config in this fork is intentionally a no-op
+  (exit 0 on line 5). Upstream migrations call it on the assumption that it
+  copies a file from the source into ~/.config/, but in this fork it does
+  nothing. When ~/.config/<top> is already symlinked, the file is already
+  present via the symlink. When ~/.config/<top> does NOT exist (a brand-new
+  config dir introduced by upstream), the no-op silently fails and the user
+  ends up missing the new config entirely.
+- migrations/ contains upstream migration scripts that run via
+  bin/omarchy-migrate. Each migration runs once per machine and is then
+  marked applied in ~/.local/state/omarchy/migrations/.
+- Code style: see AGENTS.md. Bash 5, two-space indent, \`#!/bin/bash\` only on
+  top-level commands (migrations are sourced and intentionally omit a
+  shebang).
+
+TARGET MIGRATION
+================
+File: $migration_rel
+
+Current contents of $migration_rel:
+\`\`\`bash
+$(cat "$REPO_PATH/$migration_rel")
+\`\`\`
+
+FINDINGS IN THIS FILE
+=====================
+$findings_text
+
+PATCHING RULES
+==============
+Apply ALL of the following rules to the migration. The patch must preserve
+upstream behavior for non-symlink installs (where ~/.config/<X> is a real
+directory created by upstream's cp -R), AND make the migration a safe no-op /
+correctly-installing operation on symlink installs.
+
+Rule 1 - WRITES_INTO_REPO (cp / tee / redirect into a path whose top-level
+  ~/.config/<TOP> is a symlink to \$OMARCHY_PATH/config/<TOP>):
+  Wrap the offending command in a guard so it runs only when ~/.config/<TOP>
+  is NOT a symlink. On a symlink install the file is already provided through
+  the symlink, so the cp would be writing into the source repo itself.
+
+  Example transformation:
+    BEFORE:
+      cp \$OMARCHY_PATH/config/hypr/xdph.conf ~/.config/hypr/
+    AFTER:
+      if [[ ! -L \$HOME/.config/hypr ]]; then
+        cp \$OMARCHY_PATH/config/hypr/xdph.conf ~/.config/hypr/
+      fi
+
+  For tee / >> redirects, wrap the whole command (or the heredoc) in the same
+  guard. For multi-line heredocs, keep the heredoc intact inside the if-block.
+
+Rule 2 - BREAKS_SYMLINK (cp -R / cp -Rpf where the destination path IS the
+  symlinked directory itself, e.g. \`cp -r src ~/.config/walker\`):
+  Same guard - run the command only when ~/.config/<TOP> is not a symlink.
+
+Rule 3 - MISSING_SILENT_FAIL (omarchy-refresh-config on a path whose
+  ~/.config/<TOP> is neither a symlink nor a real dir):
+  Prefix the omarchy-refresh-config call with a block that creates the
+  symlink first, but only if the path is fully absent (do NOT overwrite a
+  real directory the user may have created).
+
+  Example transformation:
+    BEFORE:
+      omarchy-refresh-config elephant/symbols.toml
+    AFTER:
+      if [[ ! -e \$HOME/.config/elephant ]]; then
+        ln -sfn "\$OMARCHY_PATH/config/elephant" "\$HOME/.config/elephant"
+      fi
+      omarchy-refresh-config elephant/symbols.toml
+
+Rule 4 - MISSING_NEW_DIR (cp / tee creating a new top-level entry in
+  ~/.config/ that isn't symlinked):
+  If the source file lives in \$OMARCHY_PATH/config/<X> (a path that would be
+  picked up by install/config/config.sh's symlink loop on a fresh install),
+  replace the cp with a guarded symlink creation, same pattern as Rule 3.
+  If the source is from \$OMARCHY_PATH/default/ (NOT under config/), leave
+  the cp as-is - those are intentionally per-user files, not symlinked.
+
+Rule 5 - Idempotency:
+  All patches must be safe to run multiple times. Use \`[[ -L … ]]\`,
+  \`[[ -e … ]]\`, or \`ln -sfn\` (force, no-dereference) to avoid breakage on
+  re-run.
+
+Rule 6 - Comment your changes:
+  Above each patched block, add a one-line comment:
+    # pondhouse-fork: skip on symlink install (see install/config/config.sh)
+  or
+    # pondhouse-fork: ensure ~/.config/<TOP> symlinked before refresh-config
+
+Rule 7 - Do NOT:
+  - Change unrelated lines.
+  - Remove the migration's other operations (pacman installs, systemd
+    actions, etc.) - patch ONLY the lines flagged above.
+  - Commit, stage, push, or run git commands. Just edit the file.
+  - Run the migration. Just produce the patch.
+  - Add new files. Only edit $migration_rel.
+
+DELIVERABLE
+===========
+Edit $REPO_PATH/$migration_rel in place. Apply the rules above to each
+finding. After editing, briefly state what you changed and why - no need to
+output the full file. Verify with bash -n that the script still parses.
+PROMPT
+}
+
+# ---------- Collect findings ----------
+
+cd "$REPO_PATH"
+
+echo "${C_BOLD}Running linter${C_RESET} ${C_DIM}($mode_arg${since_ref:+ $since_ref})${C_RESET}"
+echo
+
+# Run linter with --json. Discard exit code (linter exits non-zero whenever
+# findings exist; that's the whole reason we're being invoked).
+if [[ $mode_arg == "--since" ]]; then
+  lint_json=$("$LINTER" --since "$since_ref" --json 2>/dev/null || true)
+else
+  lint_json=$("$LINTER" "$mode_arg" --json 2>/dev/null || true)
+fi
+
+if [[ -z $lint_json ]]; then
+  echo "error: linter produced no output" >&2
+  exit 2
+fi
+
+# Group findings by file. Exclude ALREADY_SHADOWED unless --include-shadowed.
+status_filter='.status != "ALREADY_SHADOWED"'
+if $include_shadowed; then
+  status_filter='true'
+fi
+
+# files_with_findings: array of distinct files needing patches.
+files_with_findings=$(echo "$lint_json" | jq -r --argjson filter true \
+  "[.findings[] | select($status_filter) | .file] | unique | .[]")
+
+if [[ -z $files_with_findings ]]; then
+  echo "${C_GREEN}No actionable findings.${C_RESET} Nothing to patch."
+  exit 0
+fi
+
+file_count=$(echo "$files_with_findings" | wc -l | tr -d ' ')
+echo "${C_BOLD}$file_count migration file(s) need patching${C_RESET}"
+echo
+
+# ---------- Per-file patch loop ----------
+
+failures=0
+patched=0
+skipped=0
+
+while IFS= read -r migration_file; do
+  [[ -z $migration_file ]] && continue
+  abs_path="$REPO_PATH/$migration_file"
+  if [[ ! -f $abs_path ]]; then
+    echo "${C_RED}skip${C_RESET} $migration_file (not a file)"
+    skipped=$((skipped + 1))
+    continue
+  fi
+
+  # Findings for this file, JSON array.
+  file_findings=$(echo "$lint_json" | jq -c \
+    --arg f "$migration_file" --argjson includeShadowed "$([[ $include_shadowed == true ]] && echo true || echo false)" \
+    '[.findings[] | select(.file == $f) | select($includeShadowed or .status != "ALREADY_SHADOWED")]')
+
+  finding_count=$(echo "$file_findings" | jq 'length')
+
+  printf '%s%s%s ' "$C_BOLD" "$migration_file" "$C_RESET"
+  echo "${C_DIM}($finding_count finding(s))${C_RESET}"
+
+  # Show a quick summary per finding.
+  echo "$file_findings" | jq -r '.[] | "  L\(.line) \(.status) \(.operation): \(.raw)"' | \
+    while IFS= read -r line; do
+      printf '  %s%s%s\n' "$C_DIM" "$line" "$C_RESET"
+    done
+
+  if ! $assume_yes && ! $dry_run; then
+    read -r -p "  Patch this migration with opencode? [y/N/q] " answer </dev/tty || answer="n"
+    case "$answer" in
+      y|Y|yes|YES) ;;
+      q|Q) echo "Quitting."; break ;;
+      *) skipped=$((skipped + 1)); echo "  ${C_DIM}skipped${C_RESET}"; echo; continue ;;
+    esac
+  fi
+
+  prompt=$(build_prompt "$migration_file" "$file_findings")
+
+  if $dry_run; then
+    echo "  ${C_BLUE}[dry-run] would invoke:${C_RESET} opencode run --dangerously-skip-permissions ${model:+--model $model} <prompt>"
+    echo "  ${C_DIM}--- prompt preview (first 30 lines) ---${C_RESET}"
+    echo "$prompt" | head -30 | sed 's/^/    /'
+    echo "  ${C_DIM}--- end preview ---${C_RESET}"
+    echo
+    patched=$((patched + 1))
+    continue
+  fi
+
+  # Run opencode. Pass the prompt as the message argument. We use
+  # --dangerously-skip-permissions so opencode can edit the file without
+  # interactive confirmation; this is acceptable here because the user already
+  # confirmed via the prompt above (or passed --yes).
+  oc_args=(run --dangerously-skip-permissions)
+  if [[ -n $model ]]; then
+    oc_args+=(--model "$model")
+  fi
+  oc_args+=("$prompt")
+
+  echo "  ${C_BLUE}invoking opencode...${C_RESET}"
+  if opencode "${oc_args[@]}"; then
+    echo "  ${C_GREEN}done${C_RESET}"
+    patched=$((patched + 1))
+  else
+    echo "  ${C_RED}opencode exited non-zero${C_RESET}"
+    failures=$((failures + 1))
+  fi
+  echo
+done <<<"$files_with_findings"
+
+# ---------- Summary ----------
+
+echo "${C_BOLD}Summary${C_RESET}"
+printf '  patched:   %s%d%s\n' "$C_GREEN" "$patched" "$C_RESET"
+printf '  skipped:   %d\n' "$skipped"
+printf '  failures:  %s%d%s\n' "$( (( failures > 0 )) && echo "$C_RED" || true)" "$failures" "$C_RESET"
+
+if (( failures > 0 )); then
+  exit 1
+fi
+exit 0

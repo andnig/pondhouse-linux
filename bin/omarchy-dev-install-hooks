@@ -1,0 +1,42 @@
+#!/bin/bash
+
+# omarchy:summary=Activate the tracked .githooks/ for this repo (post-merge migration linter).
+# omarchy:examples=omarchy dev install-hooks
+
+set -euo pipefail
+
+REPO_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+cd "$REPO_PATH"
+
+if [[ ! -d .githooks ]]; then
+  echo "error: .githooks/ directory not found at $REPO_PATH" >&2
+  exit 1
+fi
+
+current=$(git config --get core.hooksPath 2>/dev/null || true)
+
+if [[ $current == ".githooks" ]]; then
+  echo "core.hooksPath is already set to .githooks"
+else
+  git config core.hooksPath .githooks
+  echo "Set core.hooksPath = .githooks"
+fi
+
+# Make sure every hook file is executable. Tracked hooks should retain the
+# executable bit via git, but normalize defensively.
+for hook in .githooks/*; do
+  [[ -f $hook ]] || continue
+  chmod +x "$hook"
+done
+
+echo
+echo "Installed hooks:"
+for hook in .githooks/*; do
+  [[ -f $hook ]] || continue
+  printf '  %s\n' "$(basename "$hook")"
+done
+
+echo
+echo "Next pull from basecamp will trigger:"
+echo "  bin/omarchy-dev-lint-migrations --since ORIG_HEAD"

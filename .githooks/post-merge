@@ -1,0 +1,33 @@
+#!/bin/bash
+
+# Pondhouse-linux post-merge hook.
+#
+# After every merge (which includes `git pull`), check whether the merge
+# brought in new migration files. If so, scan them for cp / refresh-config
+# patterns that would conflict with this fork's symlink-based config install
+# (install/config/config.sh).
+#
+# Activate with:  bin/omarchy-dev-install-hooks
+
+set -uo pipefail
+
+REPO_PATH="$(git rev-parse --show-toplevel)"
+LINTER="$REPO_PATH/bin/omarchy-dev-lint-migrations"
+
+if [[ ! -x $LINTER ]]; then
+  # Hook is harmless if the linter isn't present yet.
+  exit 0
+fi
+
+# Did this merge touch migrations/ at all?
+if ! git diff --quiet --diff-filter=AM ORIG_HEAD HEAD -- 'migrations/*.sh' 2>/dev/null; then
+  echo
+  echo "post-merge: migrations changed - linting against symlink install"
+  echo
+
+  # Run the linter; it sets its own exit code. We deliberately do NOT fail the
+  # merge - the merge already happened. The hook just surfaces information.
+  "$LINTER" --since ORIG_HEAD || true
+fi
+
+exit 0
