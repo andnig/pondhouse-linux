@@ -1,5 +1,41 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "theme": "system",
-  "autoupdate": false
+  "autoupdate": true,
+  "lsp": {
+    "csharp": {
+      "disabled": false,
+      "command": ["csharp-ls"],
+      "extensions": [".cs"],
+      "env": {
+        "DOTNET_ROOT": "$HOME/.local/share/mise/installs/dotnet/10"
+      }
+    }
+  },
+  "plugin": [
+    "opencode-claude-auth",
+    //    "@tarquinen/opencode-dcp@latest",
+    "oh-my-openagent@latest"
+  ],
+  "mcp": {
+    "microsoft-learn": {
+      "type": "remote",
+      "url": "https://learn.microsoft.com/api/mcp",
+      "enabled": false
+    },
+    "playwriter": {
+      "type": "local",
+      "command": ["npx", "-y", "playwriter@latest"],
+      "enabled": false
+    },
+    "context7": {
+      "type": "local",
+      "command": ["npx", "-y", "@upstash/context7-mcp"],
+      "enabled": false
+    },
+    "playwright": {
+      "type": "local",
+      "command": ["npx", "@playwright/mcp@latest"],
+      "enabled": false
+    }
+  }
 }
