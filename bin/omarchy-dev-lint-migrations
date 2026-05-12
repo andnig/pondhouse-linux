@@ -111,6 +111,11 @@ if ! [[ -t 1 ]] || $json; then
   use_color=false
 fi
 
+use_gum=false
+if $use_color && command -v gum >/dev/null 2>&1; then
+  use_gum=true
+fi
+
 # ---------- Colors ----------
 
 if $use_color; then
@@ -286,6 +291,43 @@ scan_migration() {
   # is never present in shell scripts, so it survives even when raw lines
   # contain pipes, semicolons, etc.
   local fs=$'\x1f'
+  local guarded_topdirs=()
+
+  is_in_symlink_guard() {
+    local top=$1
+    local guard
+
+    for guard in "${guarded_topdirs[@]}"; do
+      [[ $guard == "$top" ]] && return 0
+    done
+
+    return 1
+  }
+
+  maybe_emit_finding() {
+    local status=$1
+    local lineno=$2
+    local op=$3
+    local top=$4
+    local raw_line=$5
+    local dest=$6
+
+    if [[ $status == "OUT_OF_SCOPE" || $status == "OK" ]]; then
+      return
+    fi
+
+    # A migration can intentionally preserve upstream behavior for regular
+    # installs while skipping the write on this fork's symlink install:
+    #   if [[ ! -L $HOME/.config/hypr ]]; then
+    #     cp ... ~/.config/hypr/...
+    #   fi
+    # Those writes are safe and should not keep failing the linter.
+    if [[ -n $top ]] && is_in_symlink_guard "$top"; then
+      return
+    fi
+
+    printf '%s%s%s%s%s%s%s%s%s%s%s\n' "$status" "$fs" "$lineno" "$fs" "$op" "$fs" "$top" "$fs" "$raw_line" "$fs" "$dest"
+  }
 
   while IFS= read -r raw || [[ -n $raw ]]; do
     lineno=$((lineno + 1))
@@ -293,6 +335,51 @@ scan_migration() {
     # Skip pure comment lines.
     local trimmed=${raw#"${raw%%[![:space:]]*}"}
     if [[ -z $trimmed || $trimmed == \#* ]]; then
+      continue
+    fi
+
+    # Track simple symlink guard blocks. This is intentionally conservative:
+    # only standalone `if [[ ! -L .../.config/<top> ]]; then` blocks count.
+    if [[ $trimmed =~ ^if[[:space:]]+\[\[[[:space:]]+![[:space:]]+-L[[:space:]]+([^[:space:]]+/\.config/[^[:space:]/\"\']+)[[:space:]]+\]\]\;?[[:space:]]*then$ ]]; then
+      guard_path=${BASH_REMATCH[1]}
+      guard_path=$(expand_path "$guard_path")
+      guard_top=$(config_topdir "$guard_path")
+      if [[ -n $guard_top ]]; then
+        guarded_topdirs+=("$guard_top")
+      fi
+      continue
+    fi
+
+    if [[ $trimmed =~ ^if[[:space:]].*then$ ]]; then
+      guarded_topdirs+=("")
+      continue
+    fi
+
+    if [[ $trimmed =~ ^elif[[:space:]]+\[\[[[:space:]]+![[:space:]]+-L[[:space:]]+([^[:space:]]+/\.config/[^[:space:]/\"\']+)[[:space:]]+\]\]\;?[[:space:]]*then$ ]]; then
+      guard_path=${BASH_REMATCH[1]}
+      guard_path=$(expand_path "$guard_path")
+      guard_top=$(config_topdir "$guard_path")
+      if [[ -n $guard_top ]]; then
+        if (( ${#guarded_topdirs[@]} > 0 )); then
+          guarded_topdirs[-1]="$guard_top"
+        else
+          guarded_topdirs+=("$guard_top")
+        fi
+      fi
+      continue
+    fi
+
+    if [[ $trimmed =~ ^elif[[:space:]].*then$ ]]; then
+      if (( ${#guarded_topdirs[@]} > 0 )); then
+        guarded_topdirs[-1]=""
+      fi
+      continue
+    fi
+
+    if [[ $trimmed == "fi" ]]; then
+      if (( ${#guarded_topdirs[@]} > 0 )); then
+        unset 'guarded_topdirs[-1]'
+      fi
       continue
     fi
 
@@ -348,9 +435,7 @@ scan_migration() {
           result=$(classify_target "$dest" "cp" "$recursive")
           local status=${result%% *}
           local top=${result#* }
-          if [[ $status != "OUT_OF_SCOPE" && $status != "OK" ]]; then
-            printf '%s%s%s%s%s%s%s%s%s%s%s\n' "$status" "$fs" "$lineno" "$fs" "cp" "$fs" "$top" "$fs" "$raw" "$fs" "$dest"
-          fi
+          maybe_emit_finding "$status" "$lineno" "cp" "$top" "$raw" "$dest"
         fi
       fi
     fi
@@ -384,9 +469,7 @@ scan_migration() {
         result=$(classify_target "$dest" "$op" "no")
         local status=${result%% *}
         local top=${result#* }
-        if [[ $status != "OUT_OF_SCOPE" && $status != "OK" ]]; then
-          printf '%s%s%s%s%s%s%s%s%s%s%s\n' "$status" "$fs" "$lineno" "$fs" "$op" "$fs" "$top" "$fs" "$raw" "$fs" "$dest"
-        fi
+        maybe_emit_finding "$status" "$lineno" "$op" "$top" "$raw" "$dest"
       fi
     fi
 
@@ -399,9 +482,7 @@ scan_migration() {
       result=$(classify_target "$dest" "refresh" "no")
       local status=${result%% *}
       local top=${result#* }
-      if [[ $status != "OUT_OF_SCOPE" && $status != "OK" ]]; then
-        printf '%s%s%s%s%s%s%s%s%s%s%s\n' "$status" "$fs" "$lineno" "$fs" "refresh-config" "$fs" "$top" "$fs" "$raw" "$fs" "$dest"
-      fi
+      maybe_emit_finding "$status" "$lineno" "refresh-config" "$top" "$raw" "$dest"
     fi
 
   done < "$file"
@@ -444,6 +525,111 @@ explain_status() {
   esac
 }
 
+gum_color_for_status() {
+  case "$1" in
+    BREAKS_SYMLINK|MISSING_SILENT_FAIL) echo "1" ;;
+    WRITES_INTO_REPO|MISSING_NEW_DIR)   echo "3" ;;
+    ALREADY_SHADOWED)                   echo "8" ;;
+    *)                                  echo "2" ;;
+  esac
+}
+
+render_header() {
+  local title="omarchy-dev-lint-migrations"
+  local detail="mode=$mode${since_ref:+, since=$since_ref}, scanning ${#MIGRATIONS[@]} migration(s)"
+
+  if $use_gum; then
+    gum style --border rounded --border-foreground 4 --padding "0 2" --bold "$title" "$detail"
+  else
+    echo "${C_BOLD}$title${C_RESET} ${C_DIM}($detail)${C_RESET}"
+  fi
+  echo
+}
+
+render_file_header() {
+  local rel=$1
+
+  if $use_gum; then
+    gum style --foreground 6 --bold "$rel"
+  else
+    printf '%s%s%s\n' "$C_BOLD" "$rel" "$C_RESET"
+  fi
+}
+
+render_finding() {
+  local status=$1
+  local lineno=$2
+  local op=$3
+  local top=$4
+  local raw_line=$5
+  local msg=$6
+  local color
+
+  if $use_gum; then
+    color=$(gum_color_for_status "$status")
+    local line_label
+    local status_label
+    local op_label
+    line_label=$(gum style --foreground 8 "L$lineno")
+    status_label=$(gum style --foreground "$color" --bold "$status")
+    op_label=$(gum style --foreground 8 "($op${top:+ → ~/.config/$top})")
+    printf '  %s  %s  %s\n' "$line_label" "$status_label" "$op_label"
+    printf '         %s\n' "$(gum style --foreground 8 "$raw_line")"
+    printf '         %s\n' "$(gum style --foreground "$color" "$msg")"
+  else
+    color=$(color_for_status "$status")
+    printf '  %sL%-4s%s %s%-20s%s  %s%s%s\n' "$C_DIM" "$lineno" "$C_RESET" "$color" "$status" "$C_RESET" "$C_DIM" "($op)" "$C_RESET"
+    printf '         %s%s%s\n' "$C_DIM" "$raw_line" "$C_RESET"
+    printf '         %s%s%s\n' "$color" "$msg" "$C_RESET"
+  fi
+}
+
+render_summary() {
+  local hard_count=$((counts[BREAKS_SYMLINK] + counts[WRITES_INTO_REPO] + counts[MISSING_SILENT_FAIL] + counts[MISSING_NEW_DIR]))
+
+  if $use_gum; then
+    gum style --foreground 4 --bold "Summary" "$total_findings finding(s) across $total_files_with_findings file(s)"
+    {
+      printf 'Class|Count|Implication\n'
+      printf 'BREAKS_SYMLINK|%d|Would replace a symlinked config dir with a real dir\n' "${counts[BREAKS_SYMLINK]}"
+      printf 'MISSING_SILENT_FAIL|%d|refresh-config is a no-op and the config may stay missing\n' "${counts[MISSING_SILENT_FAIL]}"
+      printf 'WRITES_INTO_REPO|%d|Write follows the symlink into the source repo\n' "${counts[WRITES_INTO_REPO]}"
+      printf 'MISSING_NEW_DIR|%d|New config entry is not part of the symlink set yet\n' "${counts[MISSING_NEW_DIR]}"
+      printf 'ALREADY_SHADOWED|%d|~/.config entry is already a real file/dir\n' "${counts[ALREADY_SHADOWED]}"
+    } | gum table --print --separator '|' --border rounded --border.foreground 8
+  else
+    echo "${C_BOLD}Summary${C_RESET} ${C_DIM}($total_findings finding(s) across $total_files_with_findings file(s))${C_RESET}"
+    printf '  %s%-21s%s %d\n' "$C_RED"    "BREAKS_SYMLINK"      "$C_RESET" "${counts[BREAKS_SYMLINK]}"
+    printf '  %s%-21s%s %d\n' "$C_RED"    "MISSING_SILENT_FAIL" "$C_RESET" "${counts[MISSING_SILENT_FAIL]}"
+    printf '  %s%-21s%s %d\n' "$C_YELLOW" "WRITES_INTO_REPO"    "$C_RESET" "${counts[WRITES_INTO_REPO]}"
+    printf '  %s%-21s%s %d\n' "$C_YELLOW" "MISSING_NEW_DIR"     "$C_RESET" "${counts[MISSING_NEW_DIR]}"
+    printf '  %s%-21s%s %d\n' "$C_GRAY"   "ALREADY_SHADOWED"    "$C_RESET" "${counts[ALREADY_SHADOWED]}"
+  fi
+
+  if (( total_findings > 0 )); then
+    echo
+    if $use_gum; then
+      gum style --foreground 4 --bold "Next steps"
+    else
+      echo "${C_BOLD}Next steps${C_RESET}"
+    fi
+
+    if [[ $mode == "since" ]]; then
+      echo "  Auto-patch new migrations:     ${C_BLUE}omarchy-dev-autopatch-migrations --since $since_ref${C_RESET}"
+    elif [[ $mode == "pending" ]]; then
+      echo "  Auto-patch pending migrations: ${C_BLUE}omarchy-dev-autopatch-migrations --pending${C_RESET}"
+    else
+      echo "  Auto-patch all flagged migrations: ${C_BLUE}omarchy-dev-autopatch-migrations --all${C_RESET}"
+    fi
+    echo "  Inspect manually:              cat migrations/<file>.sh"
+
+    if (( hard_count > 0 )); then
+      echo "  Tip: prefer --pending or --since ORIG_HEAD before patching; --all includes historical migrations."
+    fi
+    echo
+  fi
+}
+
 # ---------- Main ----------
 
 declare -A counts=(
@@ -478,8 +664,7 @@ if (( ${#MIGRATIONS[@]} == 0 )); then
 fi
 
 if ! $json; then
-  echo "${C_BOLD}omarchy-dev-lint-migrations${C_RESET} ${C_DIM}(mode=$mode${since_ref:+, since=$since_ref}, scanning ${#MIGRATIONS[@]} migration(s))${C_RESET}"
-  echo
+  render_header
 fi
 
 # JSON output accumulator
@@ -494,7 +679,7 @@ for migration in "${MIGRATIONS[@]}"; do
   rel=${migration#"$REPO_PATH/"}
 
   if ! $json; then
-    printf '%s%s%s\n' "$C_BOLD" "$rel" "$C_RESET"
+    render_file_header "$rel"
   fi
 
   while IFS=$'\x1f' read -r status lineno op top raw_line dest; do
@@ -515,12 +700,9 @@ for migration in "${MIGRATIONS[@]}"; do
       json_findings+=$(printf '{"file":"%s","line":%s,"status":"%s","operation":"%s","topdir":"%s","destination":"%s","severity":"%s","raw":"%s"}' \
         "$esc_file" "$lineno" "$status" "$op" "$top" "$esc_dest" "$(severity_for "$status")" "$esc_raw")
     else
-      color=$(color_for_status "$status")
       msg=$(explain_status "$status")
       msg=${msg//\$TOP/$top}
-      printf '  %sL%-4s%s %s%-20s%s  %s%s%s\n' "$C_DIM" "$lineno" "$C_RESET" "$color" "$status" "$C_RESET" "$C_DIM" "($op)" "$C_RESET"
-      printf '         %s%s%s\n' "$C_DIM" "$raw_line" "$C_RESET"
-      printf '         %s%s%s\n' "$color" "$msg" "$C_RESET"
+      render_finding "$status" "$lineno" "$op" "$top" "$raw_line" "$msg"
     fi
   done <<<"$hits"
 
@@ -535,26 +717,7 @@ if $json; then
     "${counts[BREAKS_SYMLINK]}" "${counts[WRITES_INTO_REPO]}" "${counts[MISSING_SILENT_FAIL]}" \
     "${counts[MISSING_NEW_DIR]}" "${counts[ALREADY_SHADOWED]}" "$json_findings"
 else
-  echo "${C_BOLD}Summary${C_RESET} ${C_DIM}($total_findings finding(s) across $total_files_with_findings file(s))${C_RESET}"
-  printf '  %s%-21s%s %d\n' "$C_RED"    "BREAKS_SYMLINK"      "$C_RESET" "${counts[BREAKS_SYMLINK]}"
-  printf '  %s%-21s%s %d\n' "$C_RED"    "MISSING_SILENT_FAIL" "$C_RESET" "${counts[MISSING_SILENT_FAIL]}"
-  printf '  %s%-21s%s %d\n' "$C_YELLOW" "WRITES_INTO_REPO"    "$C_RESET" "${counts[WRITES_INTO_REPO]}"
-  printf '  %s%-21s%s %d\n' "$C_YELLOW" "MISSING_NEW_DIR"     "$C_RESET" "${counts[MISSING_NEW_DIR]}"
-  printf '  %s%-21s%s %d\n' "$C_GRAY"   "ALREADY_SHADOWED"    "$C_RESET" "${counts[ALREADY_SHADOWED]}"
-
-  if (( total_findings > 0 )); then
-    echo
-    echo "${C_BOLD}Next steps${C_RESET}"
-    if [[ $mode == "since" ]]; then
-      echo "  Auto-patch new migrations:   ${C_BLUE}omarchy-dev-autopatch-migrations --since $since_ref${C_RESET}"
-    elif [[ $mode == "pending" ]]; then
-      echo "  Auto-patch pending migrations: ${C_BLUE}omarchy-dev-autopatch-migrations --pending${C_RESET}"
-    else
-      echo "  Auto-patch all flagged migrations: ${C_BLUE}omarchy-dev-autopatch-migrations --all${C_RESET}"
-    fi
-    echo "  Inspect manually:            cat migrations/<file>.sh"
-    echo
-  fi
+  render_summary
 fi
 
 # Exit code: 1 if any non-informational finding, 0 otherwise.

@@ -9,7 +9,12 @@ if ! grep -q "map shift+insert paste_from_clipboard" "$KITTY_CONF"; then
 fi
 
 echo "Copy hooks examples"
-cp -r $OMARCHY_PATH/config/omarchy/* $HOME/.config/omarchy/
+# pondhouse-fork: ensure ~/.config/omarchy symlinked, copy only on real-dir installs (see install/config/config.sh)
+if [[ ! -e $HOME/.config/omarchy && ! -L $HOME/.config/omarchy ]]; then
+  ln -sfn "$OMARCHY_PATH/config/omarchy" "$HOME/.config/omarchy"
+elif [[ ! -L $HOME/.config/omarchy ]]; then
+  cp -r $OMARCHY_PATH/config/omarchy/* $HOME/.config/omarchy/
+fi
 
 echo "Add packages for updated omarchy-capture-screenshot"
 omarchy-pkg-add grim slurp

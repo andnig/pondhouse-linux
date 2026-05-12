@@ -2,7 +2,10 @@ echo "Add custom share portal picker"
 omarchy-pkg-add hyprland-preview-share-picker
 
 mkdir -p ~/.config/hyprland-preview-share-picker
-omarchy-refresh-config hyprland-preview-share-picker/config.yaml
+# pondhouse-fork: ensure ~/.config/hyprland-preview-share-picker symlinked before refresh-config
+if [[ ! -e $HOME/.config/hyprland-preview-share-picker ]]; then
+  ln -sfn "$OMARCHY_PATH/config/hyprland-preview-share-picker" "$HOME/.config/hyprland-preview-share-picker"
+fi
 
 if ! grep -q "custom_picker_binary" ~/.config/hypr/xdph.conf; then
   sed -i '/screencopy {/a\    custom_picker_binary = hyprland-preview-share-picker' ~/.config/hypr/xdph.conf

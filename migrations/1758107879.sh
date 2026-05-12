@@ -33,8 +33,13 @@ if (( WALKER_MAJOR < 2 )); then
 fi
 
 # Ensure basic config is present
-mkdir -p ~/.config/walker
-cp -r ~/.local/share/omarchy/config/walker/* ~/.config/walker/
+# pondhouse-fork: ensure ~/.config/walker symlinked, copy only on real-dir installs (see install/config/config.sh)
+if [[ ! -e $HOME/.config/walker && ! -L $HOME/.config/walker ]]; then
+  ln -sfn "$OMARCHY_PATH/config/walker" "$HOME/.config/walker"
+elif [[ ! -L $HOME/.config/walker ]]; then
+  mkdir -p ~/.config/walker
+  cp -r ~/.local/share/omarchy/config/walker/* ~/.config/walker/
+fi
 
 if $NEEDS_MIGRATION; then
   kill -9 $(pgrep -x walker) 2>/dev/null || true
@@ -48,8 +53,10 @@ if $NEEDS_MIGRATION; then
   rm -rf ~/.config/walker/themes
 
   omarchy-refresh-config walker/config.toml
-  omarchy-refresh-config elephant/calc.toml
-  omarchy-refresh-config elephant/desktopapplications.toml
+  # pondhouse-fork: ensure ~/.config/elephant symlinked before refresh-config
+  if [[ ! -e $HOME/.config/elephant ]]; then
+    ln -sfn "$OMARCHY_PATH/config/elephant" "$HOME/.config/elephant"
+  fi
 fi
 
 echo # Assure final success

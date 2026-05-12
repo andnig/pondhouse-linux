@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # omarchy:summary=Use opencode to patch migrations that conflict with the symlink-based install.
-# omarchy:args=[--since REF | --all | --pending] [--yes] [--dry-run] [--include-shadowed] [--model M]
+# omarchy:args=[--since REF | --all | --pending] [--yes] [--dry-run] [--include-shadowed] [--fix-shadowed-configs] [--model M]
 # omarchy:examples=omarchy dev autopatch-migrations --pending | omarchy dev autopatch-migrations --since basecamp/master --yes
 
 set -uo pipefail
@@ -19,6 +19,7 @@ since_ref=""
 assume_yes=false
 dry_run=false
 include_shadowed=false
+fix_shadowed_configs=false
 model=""
 
 print_help() {
@@ -39,13 +40,20 @@ OPTIONS:
   --include-shadowed  Also patch ALREADY_SHADOWED findings. Off by default;
                       those migrations have already run on this machine and
                       patching them now usually has no effect.
-  --yes               Do not prompt before invoking opencode on each migration.
+  --fix-shadowed-configs
+                      Repair local ALREADY_SHADOWED ~/.config entries by
+                      backing up the real file/dir and recreating the symlink
+                      to ~/.local/share/omarchy/config/<X>. This is a local
+                      repair mode; it does not invoke opencode.
+  --yes               Do not prompt before invoking opencode or repairing
+                      shadowed configs.
   --dry-run           Show what would be patched, but do not invoke opencode.
   --model M           Pass --model M to opencode (e.g. anthropic/claude-opus-4-7).
   -h, --help          Show this help.
 
 PREREQUISITES:
-  - opencode CLI on PATH (https://opencode.ai)
+  - opencode CLI on PATH for migration patching (not needed for --dry-run or
+    --fix-shadowed-configs)
   - bin/omarchy-dev-lint-migrations functional
 
 EXIT CODES:
@@ -83,6 +91,10 @@ while (( $# > 0 )); do
       include_shadowed=true
       shift
       ;;
+    --fix-shadowed-configs)
+      fix_shadowed_configs=true
+      shift
+      ;;
     --model)
       model="${2:-}"
       [[ -z $model ]] && { echo "error: --model requires a value" >&2; exit 2; }
@@ -107,11 +119,6 @@ fi
 
 # ---------- Prerequisites ----------
 
-if ! command -v opencode >/dev/null 2>&1; then
-  echo "error: opencode CLI not on PATH. Install from https://opencode.ai" >&2
-  exit 2
-fi
-
 if [[ ! -x $LINTER ]]; then
   echo "error: linter not executable at $LINTER" >&2
   exit 2
@@ -135,6 +142,109 @@ if [[ -t 1 ]]; then
 else
   C_RESET="" C_BOLD="" C_DIM="" C_RED="" C_GREEN="" C_YELLOW="" C_BLUE=""
 fi
+
+# ---------- Shadowed config repair ----------
+
+backup_path_for() {
+  local dst=$1
+  local backup="$dst.shadowed.$(date +%s)"
+  local n=1
+
+  while [[ -e $backup || -L $backup ]]; do
+    backup="$dst.shadowed.$(date +%s).$n"
+    n=$((n + 1))
+  done
+
+  echo "$backup"
+}
+
+repair_shadowed_configs() {
+  local lint_json=$1
+  local topdirs
+  local repaired=0
+  local skipped=0
+  local failed=0
+
+  topdirs=$(echo "$lint_json" | jq -r '.findings[] | select(.status == "ALREADY_SHADOWED") | .topdir | select(. != "")' | sort -u)
+
+  if [[ -z $topdirs ]]; then
+    echo "${C_GREEN}No ALREADY_SHADOWED configs found for this selection.${C_RESET}"
+    return 0
+  fi
+
+  echo "${C_BOLD}Repairing ALREADY_SHADOWED configs${C_RESET}"
+  echo
+
+  while IFS= read -r topdir; do
+    [[ -z $topdir ]] && continue
+
+    local src="$HOME/.local/share/omarchy/config/$topdir"
+    local dst="$HOME/.config/$topdir"
+    local backup
+    backup=$(backup_path_for "$dst")
+
+    if [[ ! -e $src && ! -L $src ]]; then
+      echo "${C_YELLOW}skip${C_RESET} $topdir - source missing: $src"
+      skipped=$((skipped + 1))
+      continue
+    fi
+
+    if [[ -L $dst ]]; then
+      echo "${C_GREEN}ok${C_RESET}   $topdir - already symlinked"
+      skipped=$((skipped + 1))
+      continue
+    fi
+
+    if [[ ! -e $dst && ! -L $dst ]]; then
+      echo "${C_BLUE}link${C_RESET} $topdir - destination missing"
+      if ! $dry_run; then
+        ln -sfn "$src" "$dst" || { failed=$((failed + 1)); continue; }
+      fi
+      repaired=$((repaired + 1))
+      continue
+    fi
+
+    echo "${C_YELLOW}fix${C_RESET}  $topdir"
+    echo "      current: $dst"
+    echo "      target:  $src"
+    echo "      backup:  $backup"
+
+    if $dry_run; then
+      echo "      ${C_DIM}[dry-run] would: mv dst backup && ln -sfn src dst${C_RESET}"
+      repaired=$((repaired + 1))
+      continue
+    fi
+
+    if ! $assume_yes; then
+      read -r -p "      Replace with symlink? [y/N/q] " answer </dev/tty || answer="n"
+      case "$answer" in
+        y|Y|yes|YES) ;;
+        q|Q) echo "Quitting shadowed repair."; break ;;
+        *) skipped=$((skipped + 1)); echo "      ${C_DIM}skipped${C_RESET}"; continue ;;
+      esac
+    fi
+
+    if mv "$dst" "$backup" && ln -sfn "$src" "$dst"; then
+      echo "      ${C_GREEN}repaired${C_RESET}"
+      repaired=$((repaired + 1))
+    else
+      echo "      ${C_RED}failed${C_RESET}"
+      failed=$((failed + 1))
+    fi
+  done <<<"$topdirs"
+
+  echo
+  echo "${C_BOLD}Shadowed repair summary${C_RESET}"
+  printf '  repaired: %s%d%s\n' "$C_GREEN" "$repaired" "$C_RESET"
+  printf '  skipped:  %d\n' "$skipped"
+  printf '  failed:   %s%d%s\n' "$( (( failed > 0 )) && echo "$C_RED" || true)" "$failed" "$C_RESET"
+  echo
+
+  if (( failed > 0 )); then
+    return 1
+  fi
+  return 0
+}
 
 # ---------- Prompt construction ----------
 
@@ -203,39 +313,53 @@ correctly-installing operation on symlink installs.
 
 Rule 1 - WRITES_INTO_REPO (cp / tee / redirect into a path whose top-level
   ~/.config/<TOP> is a symlink to \$OMARCHY_PATH/config/<TOP>):
-  Wrap the offending command in a guard so it runs only when ~/.config/<TOP>
-  is NOT a symlink. On a symlink install the file is already provided through
-  the symlink, so the cp would be writing into the source repo itself.
+  Use a three-way branch:
+
+  1. If ~/.config/<TOP> is fully absent, create the symlink to
+     \$OMARCHY_PATH/config/<TOP>.
+  2. Else if ~/.config/<TOP> is NOT a symlink, run the original upstream
+     write/copy command against the existing real dir/file.
+  3. Else (already symlinked), do nothing.
+
+  This matters because a missing top-level config dir/file in this fork should
+  become a symlink, not a copied real dir/file. But if a user already has a
+  real dir/file, preserve upstream behavior and copy into it.
 
   Example transformation:
     BEFORE:
       cp \$OMARCHY_PATH/config/hypr/xdph.conf ~/.config/hypr/
     AFTER:
-      if [[ ! -L \$HOME/.config/hypr ]]; then
+      # pondhouse-fork: ensure ~/.config/hypr symlinked, copy only on real-dir installs (see install/config/config.sh)
+      if [[ ! -e \$HOME/.config/hypr && ! -L \$HOME/.config/hypr ]]; then
+        ln -sfn "\$OMARCHY_PATH/config/hypr" "\$HOME/.config/hypr"
+      elif [[ ! -L \$HOME/.config/hypr ]]; then
         cp \$OMARCHY_PATH/config/hypr/xdph.conf ~/.config/hypr/
       fi
 
-  For tee / >> redirects, wrap the whole command (or the heredoc) in the same
-  guard. For multi-line heredocs, keep the heredoc intact inside the if-block.
+  For tee / >> redirects, put the whole command (or heredoc) in the \`elif\`
+  branch. For multi-line heredocs, keep the heredoc intact inside the elif
+  branch.
 
 Rule 2 - BREAKS_SYMLINK (cp -R / cp -Rpf where the destination path IS the
   symlinked directory itself, e.g. \`cp -r src ~/.config/walker\`):
-  Same guard - run the command only when ~/.config/<TOP> is not a symlink.
+  Same three-way branch as Rule 1: missing -> symlink, real dir -> copy,
+  symlink -> no-op.
 
 Rule 3 - MISSING_SILENT_FAIL (omarchy-refresh-config on a path whose
   ~/.config/<TOP> is neither a symlink nor a real dir):
-  Prefix the omarchy-refresh-config call with a block that creates the
-  symlink first, but only if the path is fully absent (do NOT overwrite a
-  real directory the user may have created).
+  Replace the omarchy-refresh-config call with a block that creates the
+  symlink if the path is fully absent (do NOT overwrite a real directory the
+  user may have created). Do not leave a literal omarchy-refresh-config call
+  behind - in this fork it is a no-op and the linter intentionally flags it.
 
   Example transformation:
     BEFORE:
       omarchy-refresh-config elephant/symbols.toml
     AFTER:
+      # pondhouse-fork: ensure ~/.config/elephant symlinked before refresh-config
       if [[ ! -e \$HOME/.config/elephant ]]; then
         ln -sfn "\$OMARCHY_PATH/config/elephant" "\$HOME/.config/elephant"
       fi
-      omarchy-refresh-config elephant/symbols.toml
 
 Rule 4 - MISSING_NEW_DIR (cp / tee creating a new top-level entry in
   ~/.config/ that isn't symlinked):
@@ -252,7 +376,7 @@ Rule 5 - Idempotency:
 
 Rule 6 - Comment your changes:
   Above each patched block, add a one-line comment:
-    # pondhouse-fork: skip on symlink install (see install/config/config.sh)
+    # pondhouse-fork: ensure ~/.config/<TOP> symlinked, copy only on real-dir installs (see install/config/config.sh)
   or
     # pondhouse-fork: ensure ~/.config/<TOP> symlinked before refresh-config
 
@@ -292,6 +416,15 @@ if [[ -z $lint_json ]]; then
   exit 2
 fi
 
+shadow_repair_failed=false
+if $fix_shadowed_configs; then
+  repair_shadowed_configs "$lint_json" || shadow_repair_failed=true
+  if $shadow_repair_failed; then
+    exit 1
+  fi
+  exit 0
+fi
+
 # Group findings by file. Exclude ALREADY_SHADOWED unless --include-shadowed.
 status_filter='.status != "ALREADY_SHADOWED"'
 if $include_shadowed; then
@@ -304,7 +437,15 @@ files_with_findings=$(echo "$lint_json" | jq -r --argjson filter true \
 
 if [[ -z $files_with_findings ]]; then
   echo "${C_GREEN}No actionable findings.${C_RESET} Nothing to patch."
+  if $shadow_repair_failed; then
+    exit 1
+  fi
   exit 0
+fi
+
+if ! $dry_run && ! command -v opencode >/dev/null 2>&1; then
+  echo "error: opencode CLI not on PATH. Install from https://opencode.ai" >&2
+  exit 2
 fi
 
 file_count=$(echo "$files_with_findings" | wc -l | tr -d ' ')
@@ -317,7 +458,9 @@ failures=0
 patched=0
 skipped=0
 
-while IFS= read -r migration_file; do
+mapfile -t migration_files <<<"$files_with_findings"
+
+for migration_file in "${migration_files[@]}"; do
   [[ -z $migration_file ]] && continue
   abs_path="$REPO_PATH/$migration_file"
   if [[ ! -f $abs_path ]]; then
@@ -382,7 +525,7 @@ while IFS= read -r migration_file; do
     failures=$((failures + 1))
   fi
   echo
-done <<<"$files_with_findings"
+done
 
 # ---------- Summary ----------
 
@@ -391,7 +534,7 @@ printf '  patched:   %s%d%s\n' "$C_GREEN" "$patched" "$C_RESET"
 printf '  skipped:   %d\n' "$skipped"
 printf '  failures:  %s%d%s\n' "$( (( failures > 0 )) && echo "$C_RED" || true)" "$failures" "$C_RESET"
 
-if (( failures > 0 )); then
+if (( failures > 0 )) || $shadow_repair_failed; then
   exit 1
 fi
 exit 0

@@ -3,11 +3,16 @@ echo "Add UWSM env"
 export OMARCHY_PATH="$HOME/.local/share/omarchy"
 export PATH="$OMARCHY_PATH/bin:$PATH"
 
-mkdir -p "$HOME/.config/uwsm/"
-cat <<EOF | tee "$HOME/.config/uwsm/env"
+# pondhouse-fork: ensure ~/.config/uwsm symlinked, copy only on real-dir installs (see install/config/config.sh)
+if [[ ! -e $HOME/.config/uwsm && ! -L $HOME/.config/uwsm ]]; then
+  ln -sfn "$OMARCHY_PATH/config/uwsm" "$HOME/.config/uwsm"
+elif [[ ! -L $HOME/.config/uwsm ]]; then
+  mkdir -p "$HOME/.config/uwsm/"
+  cat <<EOF | tee "$HOME/.config/uwsm/env"
 export OMARCHY_PATH=$HOME/.local/share/omarchy
 export PATH=$OMARCHY_PATH/bin/:$PATH
 EOF
+fi
 
 # Ensure we have the latest repos and are ready to pull
 omarchy-update-keyring

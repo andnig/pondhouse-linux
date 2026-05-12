@@ -320,6 +320,125 @@ Now all pushes per default go to your custom repository. Pulls are still from
 the original repository, meaning also updates are only pulled from the original
 repository.
 
+## Syncing with upstream basecamp
+
+`install/config/config.sh` in this fork replaces upstream's `cp -R` install
+with per-entry symlinks (`ln -sfn ~/.local/share/omarchy/config/<X>
+~/.config/<X>`). That means every config directory under `~/.config/` is a
+symlink into the source tree, so editing the source updates the running
+config immediately.
+
+The problem: upstream migration scripts under `migrations/` still use raw
+`cp` to introduce new config files. When you `git pull basecamp master`,
+those migrations will either (a) write *through* the symlink into the source
+repo, or (b) replace the symlink with a real directory. On top of that,
+`omarchy-refresh-config` is intentionally a no-op in this fork, so any
+migration that calls it on a brand-new config dir silently does nothing and
+the new package's config ends up missing entirely.
+
+To detect these problems automatically, this repo ships three
+`omarchy-dev-*` commands and a tracked `.githooks/post-merge` hook.
+
+### One-time setup
+
+```bash
+omarchy dev install-hooks
+```
+
+This points `core.hooksPath` at `.githooks/` and makes the hook executable.
+Run it once after cloning.
+
+### What the hook does
+
+After every merge (including `git pull basecamp master`), the hook checks
+whether new migrations were added in `ORIG_HEAD..HEAD`. If so, it runs:
+
+```
+omarchy-dev-lint-migrations --since ORIG_HEAD
+```
+
+The linter scans each new migration for `cp` / `tee` / `omarchy-refresh-config`
+patterns that conflict with the symlink install and classifies them:
+
+| Class | Meaning |
+|---|---|
+| `BREAKS_SYMLINK` | `cp -R` into the symlinked dir itself - would replace the symlink with a real directory. |
+| `WRITES_INTO_REPO` | `cp` into a file under a symlinked dir - the write follows the symlink into the source repo working tree. |
+| `MISSING_SILENT_FAIL` | `omarchy-refresh-config X/...` where `~/.config/X` isn't symlinked - the no-op silently does nothing and the user is left without the new config. |
+| `MISSING_NEW_DIR` | Migration creates a new top-level entry in `~/.config/` that isn't part of the symlink set. |
+| `ALREADY_SHADOWED` | Informational - `~/.config/X` is already a real dir/file (an earlier migration broke the symlink). |
+
+### Manual invocation
+
+```bash
+# Scan all migrations not yet applied on this machine
+omarchy dev lint-migrations --pending
+
+# Scan a specific range (same as the hook does)
+omarchy dev lint-migrations --since basecamp/master
+
+# Machine-readable output (consumed by the autopatcher)
+omarchy dev lint-migrations --pending --json
+```
+
+### Auto-patching with opencode
+
+After the linter flags problem migrations, you can have `opencode` patch
+them automatically. The autopatcher reuses the linter's JSON output, then
+constructs a focused prompt per migration explaining the symlink contract
+and the required transformation, and invokes `opencode run` to edit the
+file in place.
+
+```bash
+# Walk through pending migrations interactively (default)
+omarchy dev autopatch-migrations --pending
+
+# Same range the hook lints, no prompts
+omarchy dev autopatch-migrations --since basecamp/master --yes
+
+# Preview without invoking opencode
+omarchy dev autopatch-migrations --pending --dry-run
+```
+
+The autopatcher only edits files. It does NOT stage, commit, or push -
+review the resulting diff with `git diff` and commit yourself.
+
+`ALREADY_SHADOWED` findings are skipped by default (patching them on this
+machine won't undo the existing shadow, but patches still help other
+machines pulling from your fork). Pass `--include-shadowed` to patch them
+anyway.
+
+### Repairing `ALREADY_SHADOWED` configs
+
+`ALREADY_SHADOWED` means `~/.config/<X>` is already a real file or directory,
+but should be a symlink to `~/.local/share/omarchy/config/<X>`. The migration
+patch alone won't fix your current machine; you need to move the real entry
+out of the way and recreate the symlink.
+
+The autopatcher can do this safely with a timestamped backup:
+
+```bash
+# Preview which ~/.config entries would be moved and relinked
+omarchy dev autopatch-migrations --all --fix-shadowed-configs --dry-run
+
+# Repair them interactively
+omarchy dev autopatch-migrations --all --fix-shadowed-configs
+
+# Repair without prompts
+omarchy dev autopatch-migrations --all --fix-shadowed-configs --yes
+```
+
+For each shadowed entry it does:
+
+```bash
+mv ~/.config/<X> ~/.config/<X>.shadowed.<timestamp>
+ln -sfn ~/.local/share/omarchy/config/<X> ~/.config/<X>
+```
+
+Use `--pending` or `--since ORIG_HEAD` when you only want to repair entries
+related to newly pulled migrations. Use `--all` when cleaning up historical
+drift on a machine.
+
 ## License
 
 Omarchy is released under the [MIT License](https://opensource.org/licenses/MIT).

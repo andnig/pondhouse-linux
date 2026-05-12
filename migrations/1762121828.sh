@@ -19,11 +19,16 @@ if [[ -n $TERMINAL ]]; then
 
   if [[ -n $desktop_id ]]; then
     mkdir -p ~/.config
-    cat > ~/.config/xdg-terminals.list << EOF
+    # pondhouse-fork: ensure ~/.config/xdg-terminals.list symlinked, write only on real-file installs (see install/config/config.sh)
+    if [[ ! -e $HOME/.config/xdg-terminals.list && ! -L $HOME/.config/xdg-terminals.list ]]; then
+      ln -sfn "$OMARCHY_PATH/config/xdg-terminals.list" "$HOME/.config/xdg-terminals.list"
+    elif [[ ! -L $HOME/.config/xdg-terminals.list ]]; then
+      cat > ~/.config/xdg-terminals.list << EOF
 # Terminal emulator preference order for xdg-terminal-exec
 # The first found and valid terminal will be used
 $desktop_id
 EOF
+    fi
   fi
 fi
 
