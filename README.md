@@ -332,9 +332,10 @@ The problem: upstream migration scripts under `migrations/` still use raw
 `cp` to introduce new config files. When you `git pull basecamp master`,
 those migrations will either (a) write *through* the symlink into the source
 repo, or (b) replace the symlink with a real directory. On top of that,
-`omarchy-refresh-config` is intentionally a no-op in this fork, so any
-migration that calls it on a brand-new config dir silently does nothing and
-the new package's config ends up missing entirely.
+`omarchy-refresh-config` is symlink-aware in this fork: it no-ops when the
+requested top-level config is already symlinked, creates the missing symlink
+when possible, and warns without failing when an existing real file or
+directory blocks the symlink.
 
 To detect these problems automatically, this repo ships three
 `omarchy-dev-*` commands and a tracked `.githooks/post-merge` hook.
@@ -364,7 +365,7 @@ patterns that conflict with the symlink install and classifies them:
 |---|---|
 | `BREAKS_SYMLINK` | `cp -R` into the symlinked dir itself - would replace the symlink with a real directory. |
 | `WRITES_INTO_REPO` | `cp` into a file under a symlinked dir - the write follows the symlink into the source repo working tree. |
-| `MISSING_SILENT_FAIL` | `omarchy-refresh-config X/...` where `~/.config/X` isn't symlinked - the no-op silently does nothing and the user is left without the new config. |
+| `MISSING_SILENT_FAIL` | Legacy class for old `omarchy-refresh-config` no-op behavior. New linter output should stay at 0. |
 | `MISSING_NEW_DIR` | Migration creates a new top-level entry in `~/.config/` that isn't part of the symlink set. |
 | `ALREADY_SHADOWED` | Informational - `~/.config/X` is already a real dir/file (an earlier migration broke the symlink). |
 
@@ -438,6 +439,22 @@ ln -sfn ~/.local/share/omarchy/config/<X> ~/.config/<X>
 Use `--pending` or `--since ORIG_HEAD` when you only want to repair entries
 related to newly pulled migrations. Use `--all` when cleaning up historical
 drift on a machine.
+
+### Protected real config directories
+
+Most top-level entries in `~/.local/share/omarchy/config/` should be symlinked
+into `~/.config/`, but these are intentionally kept as real directories:
+
+| Directory | Why it stays real |
+|---|---|
+| `autostart` | Holds per-user/application autostart desktop files. |
+| `calcure` | Holds local calendar/task data and logs. |
+| `omarchy` | Holds active theme/current runtime state and local theme material. |
+
+The migration linter, autopatcher repair mode, and
+`repair-omarchy-configs.sh` treat these as protected. Future migration cleanup
+should not turn them into symlinks or flag migrations merely because they copy
+into these directories.
 
 ## License
 

@@ -16,6 +16,15 @@ OMARCHY_RUNTIME_PATH="$HOME/.local/share/omarchy"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_PATH="$(cd "$SCRIPT_DIR/.." && pwd)"
 
+# These top-level ~/.config entries intentionally remain real directories.
+# They hold local runtime/user data and must not be converted to symlinks by
+# migration cleanup tooling.
+PROTECTED_REAL_CONFIG_DIRS=(
+  autostart
+  calcure
+  omarchy
+)
+
 # ---------- Argument parsing ----------
 
 mode="auto"     # auto | all | pending | since
@@ -202,6 +211,17 @@ config_topdir() {
   fi
 }
 
+is_protected_real_config_dir() {
+  local top=$1
+  local protected
+
+  for protected in "${PROTECTED_REAL_CONFIG_DIRS[@]}"; do
+    [[ $top == "$protected" ]] && return 0
+  done
+
+  return 1
+}
+
 # Classify a target path. Echoes "STATUS TOP_LEVEL" (TOP_LEVEL may be empty).
 classify_target() {
   local raw=$1
@@ -230,6 +250,11 @@ classify_target() {
   # No top dir extractable (rare): treat as missing-new.
   if [[ -z $top ]]; then
     echo "MISSING_NEW_DIR "
+    return
+  fi
+
+  if is_protected_real_config_dir "$top"; then
+    echo "OK $top"
     return
   fi
 

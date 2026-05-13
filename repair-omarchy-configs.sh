@@ -17,10 +17,17 @@ CONFIGS=(
   obsidian
   wiremix
   hyprland-preview-share-picker
+  gtk-4.0
   ghostty
   xdg-terminals.list
   git
   elephant
+)
+
+PROTECTED_REAL_CONFIG_DIRS=(
+  autostart
+  calcure
+  omarchy
 )
 
 usage() {
@@ -29,6 +36,9 @@ Usage: ./repair-omarchy-configs.sh [--dry-run] [--yes]
 
 Repair selected Omarchy ~/.config entries by replacing real files/dirs with
 symlinks to ~/.local/share/omarchy/config/<name>.
+
+Protected real dirs are intentionally never repaired by this script:
+  autostart, calcure, omarchy
 
 Backups are moved to:
   ~/.config/backup/<name>.shadowed.<timestamp>
@@ -96,8 +106,20 @@ status_label() {
     ok) echo "already linked" ;;
     link) echo "will symlink" ;;
     backup) echo "backup + symlink" ;;
+    protected) echo "protected real dir" ;;
     skip) echo "skip" ;;
   esac
+}
+
+is_protected_real_config_dir() {
+  local name=$1
+  local protected
+
+  for protected in "${PROTECTED_REAL_CONFIG_DIRS[@]}"; do
+    [[ $name == "$protected" ]] && return 0
+  done
+
+  return 1
 }
 
 backup_path_for() {
@@ -121,6 +143,11 @@ planned_status_for() {
   local name=$1
   local src="$OMARCHY_CONFIG_DIR/$name"
   local dst="$USER_CONFIG_DIR/$name"
+
+  if is_protected_real_config_dir "$name"; then
+    echo "protected|intentionally kept as real ~/.config dir"
+    return
+  fi
 
   if [[ ! -e $src && ! -L $src ]]; then
     echo "skip|source missing"
@@ -163,6 +190,13 @@ print_plan() {
     done
   fi
   echo
+
+  if have_gum; then
+    gum style --foreground 3 --bold "Protected real dirs (never repaired): ${PROTECTED_REAL_CONFIG_DIRS[*]}"
+  else
+    echo "Protected real dirs (never repaired): ${PROTECTED_REAL_CONFIG_DIRS[*]}"
+  fi
+  echo
 }
 
 confirm_or_exit() {
@@ -199,6 +233,10 @@ repair_one() {
       ;;
     skip)
       echo "SKIP  $name ($reason)"
+      return
+      ;;
+    protected)
+      echo "KEEP  $name ($reason)"
       return
       ;;
     link)

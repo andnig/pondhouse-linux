@@ -12,6 +12,15 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_PATH="$(cd "$SCRIPT_DIR/.." && pwd)"
 LINTER="$SCRIPT_DIR/omarchy-dev-lint-migrations"
 
+# These top-level ~/.config entries intentionally remain real directories.
+# Never auto-repair them into symlinks and never ask opencode to patch
+# migrations just because they copy into these dirs.
+PROTECTED_REAL_CONFIG_DIRS=(
+  autostart
+  calcure
+  omarchy
+)
+
 # ---------- Argument parsing ----------
 
 mode_arg=""    # --since REF | --all | --pending  (forwarded to linter)
@@ -158,6 +167,17 @@ backup_path_for() {
   echo "$backup"
 }
 
+is_protected_real_config_dir() {
+  local top=$1
+  local protected
+
+  for protected in "${PROTECTED_REAL_CONFIG_DIRS[@]}"; do
+    [[ $top == "$protected" ]] && return 0
+  done
+
+  return 1
+}
+
 repair_shadowed_configs() {
   local lint_json=$1
   local topdirs
@@ -177,6 +197,12 @@ repair_shadowed_configs() {
 
   while IFS= read -r topdir; do
     [[ -z $topdir ]] && continue
+
+    if is_protected_real_config_dir "$topdir"; then
+      echo "${C_YELLOW}skip${C_RESET} $topdir - protected real config dir"
+      skipped=$((skipped + 1))
+      continue
+    fi
 
     local src="$HOME/.local/share/omarchy/config/$topdir"
     local dst="$HOME/.config/$topdir"
@@ -286,6 +312,10 @@ REPO CONTEXT
 - Code style: see AGENTS.md. Bash 5, two-space indent, \`#!/bin/bash\` only on
   top-level commands (migrations are sourced and intentionally omit a
   shebang).
+- Protected real config dirs: ~/.config/autostart, ~/.config/calcure, and
+  ~/.config/omarchy intentionally remain real directories. Do not patch
+  migrations merely because they copy into those dirs; those copies preserve
+  intended local/runtime state behavior.
 
 TARGET MIGRATION
 ================
