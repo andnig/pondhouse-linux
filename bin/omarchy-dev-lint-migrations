@@ -51,7 +51,7 @@ PROBLEM CLASSES:
   BREAKS-SYMLINK        cp -R/-Rpf into the symlinked dir itself - replaces symlink with real dir.
   WRITES-INTO-REPO      cp/tee into a file under a symlinked dir - write lands in source repo via the symlink.
   ALREADY-SHADOWED      Target subdir is already a real dir/file (symlink already lost).
-  MISSING-SILENT-FAIL   omarchy-refresh-config on a missing/unsymlinked dir; no-op silently fails.
+  MISSING-SILENT-FAIL   Legacy class for old no-op omarchy-refresh-config behavior.
   MISSING-NEW-DIR       Migration creates a new ~/.config/<X>/ that isn't part of the symlink set yet.
   OK                    Target is outside ~/.config/, or write is harmless.
 EOF
@@ -242,7 +242,9 @@ classify_target() {
         echo "BREAKS_SYMLINK $top"
         return
       fi
-      # refresh-config on a healthy symlinked dir is a no-op AND the file already exists via symlink.
+      # refresh-config is symlink-aware in this fork: it no-ops on correct
+      # symlinks, creates missing symlinks, and warns without failing when a
+      # real file/dir blocks the symlink.
       if [[ $op == "refresh" ]]; then
         echo "OK $top"
         return
@@ -259,23 +261,13 @@ classify_target() {
 
   if [[ -e $link_path ]]; then
     # It's a real file/dir. The symlink was already lost (probably by an earlier migration).
-    if [[ $op == "refresh" ]]; then
-      # refresh-config is a no-op in this fork; on a real dir the cp would have worked upstream,
-      # but here nothing happens. User isn't missing content (the dir exists), but it won't be
-      # updated from the source repo on future pulls. Flag as silent fail.
-      echo "MISSING_SILENT_FAIL $top"
-      return
-    fi
+    [[ $op == "refresh" ]] && { echo "OK $top"; return; }
     echo "ALREADY_SHADOWED $top"
     return
   fi
 
   # link_path does not exist at all.
-  if [[ $op == "refresh" ]]; then
-    echo "MISSING_SILENT_FAIL $top"
-  else
-    echo "MISSING_NEW_DIR $top"
-  fi
+  [[ $op == "refresh" ]] && echo "OK $top" || echo "MISSING_NEW_DIR $top"
 }
 
 # ---------- Pattern scanning ----------
@@ -517,7 +509,7 @@ explain_status() {
     WRITES_INTO_REPO)
       echo "Target dir is a symlink to the source repo - the write lands inside ~/.local/share/omarchy/config/, polluting the working tree." ;;
     MISSING_SILENT_FAIL)
-      echo "omarchy-refresh-config is a no-op in this fork; ~/.config/\$TOP isn't a symlink, so this silently does nothing and the user is left without the new config." ;;
+      echo "Legacy finding: old omarchy-refresh-config behavior silently did nothing when ~/.config/\$TOP was not symlinked." ;;
     MISSING_NEW_DIR)
       echo "Creates ~/.config/\$TOP as a real dir - install/config/config.sh hasn't been rerun, so this new package's config won't be tracked via symlinks." ;;
     ALREADY_SHADOWED)
@@ -592,7 +584,7 @@ render_summary() {
     {
       printf 'Class|Count|Implication\n'
       printf 'BREAKS_SYMLINK|%d|Would replace a symlinked config dir with a real dir\n' "${counts[BREAKS_SYMLINK]}"
-      printf 'MISSING_SILENT_FAIL|%d|refresh-config is a no-op and the config may stay missing\n' "${counts[MISSING_SILENT_FAIL]}"
+      printf 'MISSING_SILENT_FAIL|%d|Legacy refresh-config no-op issue\n' "${counts[MISSING_SILENT_FAIL]}"
       printf 'WRITES_INTO_REPO|%d|Write follows the symlink into the source repo\n' "${counts[WRITES_INTO_REPO]}"
       printf 'MISSING_NEW_DIR|%d|New config entry is not part of the symlink set yet\n' "${counts[MISSING_NEW_DIR]}"
       printf 'ALREADY_SHADOWED|%d|~/.config entry is already a real file/dir\n' "${counts[ALREADY_SHADOWED]}"

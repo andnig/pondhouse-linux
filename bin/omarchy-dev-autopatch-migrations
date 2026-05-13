@@ -277,13 +277,9 @@ REPO CONTEXT
   \`cp -R ~/.local/share/omarchy/config/* ~/.config/\` with a per-entry
   \`ln -sfn ~/.local/share/omarchy/config/<X> ~/.config/<X>\` loop, so every
   top-level entry in config/ becomes a symlink into the source tree on disk.
-- bin/omarchy-refresh-config in this fork is intentionally a no-op
-  (exit 0 on line 5). Upstream migrations call it on the assumption that it
-  copies a file from the source into ~/.config/, but in this fork it does
-  nothing. When ~/.config/<top> is already symlinked, the file is already
-  present via the symlink. When ~/.config/<top> does NOT exist (a brand-new
-  config dir introduced by upstream), the no-op silently fails and the user
-  ends up missing the new config entirely.
+- bin/omarchy-refresh-config in this fork is symlink-aware: it no-ops when
+  ~/.config/<top> is already the correct symlink, creates the symlink when it
+  is missing, and warns without failing when a real file/dir blocks it.
 - migrations/ contains upstream migration scripts that run via
   bin/omarchy-migrate. Each migration runs once per machine and is then
   marked applied in ~/.local/state/omarchy/migrations/.
@@ -345,21 +341,10 @@ Rule 2 - BREAKS_SYMLINK (cp -R / cp -Rpf where the destination path IS the
   Same three-way branch as Rule 1: missing -> symlink, real dir -> copy,
   symlink -> no-op.
 
-Rule 3 - MISSING_SILENT_FAIL (omarchy-refresh-config on a path whose
-  ~/.config/<TOP> is neither a symlink nor a real dir):
-  Replace the omarchy-refresh-config call with a block that creates the
-  symlink if the path is fully absent (do NOT overwrite a real directory the
-  user may have created). Do not leave a literal omarchy-refresh-config call
-  behind - in this fork it is a no-op and the linter intentionally flags it.
-
-  Example transformation:
-    BEFORE:
-      omarchy-refresh-config elephant/symbols.toml
-    AFTER:
-      # pondhouse-fork: ensure ~/.config/elephant symlinked before refresh-config
-      if [[ ! -e \$HOME/.config/elephant ]]; then
-        ln -sfn "\$OMARCHY_PATH/config/elephant" "\$HOME/.config/elephant"
-      fi
+Rule 3 - MISSING_SILENT_FAIL:
+  This is a legacy finding from before omarchy-refresh-config became
+  symlink-aware. New linter output should not include this class. If it does,
+  do not patch the migration; fix bin/omarchy-refresh-config or the linter.
 
 Rule 4 - MISSING_NEW_DIR (cp / tee creating a new top-level entry in
   ~/.config/ that isn't symlinked):

@@ -1,49 +1,93 @@
 #!/bin/bash
 
-echo "Refreshing Omarchy config file..."
-echo "We use stow for config file management, so all the files are automatically up to date"
-exit 0
-
-# omarchy:summary=Copies the named config from ~/.local/share/omarchy/config/X/Y/Z -> ~/.config/X/Y/Z.
+# omarchy:summary=Ensure the named Omarchy config is available through the symlink-based ~/.config install.
 # omarchy:args=<config-path>
 
-# This script deploys ~/.local/share/omarchy/config/X/Y/Z -> ~/.config/X/Y/Z
-config_file=$1
+set -uo pipefail
+
+show_usage() {
+  cat <<USAGE
+Usage: $0 [config_file]
+
+Must provide a file path from the .config directory to be refreshed.
+To make ~/.local/share/omarchy/config/hypr/hyprlock.conf available at
+~/.config/hypr/hyprlock.conf:
+
+  $0 hypr/hyprlock.conf
+USAGE
+}
+
+style() {
+  local color=$1
+  local message=$2
+
+  if [[ -t 1 ]] && command -v gum >/dev/null 2>&1; then
+    gum style --foreground "$color" "$message"
+  else
+    echo "$message"
+  fi
+}
+
+warn() {
+  local title=$1
+  shift
+
+  if [[ -t 1 ]] && command -v gum >/dev/null 2>&1; then
+    gum style --border rounded --border-foreground 3 --padding "0 2" --foreground 3 "$title" "$@"
+  else
+    echo "WARNING: $title"
+    for line in "$@"; do
+      echo "  $line"
+    done
+  fi
+}
+
+config_file=${1:-}
 
 if [[ -z $config_file ]]; then
-  cat <<USAGE
-  Usage: $0 [config_file]
-
-  Must provide a file path from the .config directory to be refreshed.
-  To copy ~/.local/share/omarchy/config/hypr/hyprlock.conf to ~/.config/hypr/hyprlock.conf
-
-    $0 hypr/hyprlock.conf
-USAGE
+  show_usage >&2
   exit 1
 fi
 
-# Backup the destination file (with timestamp) to avoid clobbering (Ex: hyprlock.conf.bak.1753817951)
-user_config_file="${HOME}/.config/$config_file"
-default_config_file="${HOME}/.local/share/omarchy/config/$config_file"
-backup_config_file="$user_config_file.bak.$(date +%s)"
+# Strip leading slashes so callers cannot escape ~/.config or config/ by
+# accidentally passing an absolute path.
+config_file=${config_file#/}
+config_entry=${config_file%%/*}
 
-mkdir -p "$(dirname "$user_config_file")"
+source_entry="$HOME/.local/share/omarchy/config/$config_entry"
+target_entry="$HOME/.config/$config_entry"
 
-if [[ -f $user_config_file ]]; then
-  # Create preliminary backup
-  cp -f "$user_config_file" "$backup_config_file" 2>/dev/null
-
-  # Replace config with new default
-  cp -f "$default_config_file" "$user_config_file" 2>/dev/null
-
-  # Compare and delete/inform accordingly
-  if cmp -s "$user_config_file" "$backup_config_file"; then
-    rm "$backup_config_file"
-  else
-    echo -e "\e[31mReplaced $user_config_file with new Omarchy default.\nSaved backup as ${backup_config_file}.\n\n\e[32mChanges:\e[0m"
-    diff "$user_config_file" "$backup_config_file" || true
-  fi
-else
-  # Config file did not exist already
-  cp -f "$default_config_file" "$user_config_file" 2>/dev/null
+if [[ ! -e $source_entry && ! -L $source_entry ]]; then
+  warn "Omarchy config source missing" \
+    "Requested: $config_file" \
+    "Expected source: $source_entry" \
+    "Nothing was changed."
+  exit 0
 fi
+
+mkdir -p "$HOME/.config"
+
+if [[ -L $target_entry ]]; then
+  current_target=$(readlink "$target_entry")
+
+  if [[ $current_target == "$source_entry" ]]; then
+    style 2 "Omarchy config already symlinked: ~/.config/$config_entry"
+    exit 0
+  fi
+
+  ln -sfn "$source_entry" "$target_entry"
+  style 2 "Updated Omarchy config symlink: ~/.config/$config_entry -> $source_entry"
+  exit 0
+fi
+
+if [[ -e $target_entry ]]; then
+  warn "Cannot symlink Omarchy config" \
+    "Requested: $config_file" \
+    "Target already exists and is not a symlink: $target_entry" \
+    "Expected symlink target: $source_entry" \
+    "Leaving existing file/directory untouched."
+  exit 0
+fi
+
+ln -sfn "$source_entry" "$target_entry"
+style 2 "Created Omarchy config symlink: ~/.config/$config_entry -> $source_entry"
