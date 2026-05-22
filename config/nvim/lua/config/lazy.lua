@@ -6,6 +6,8 @@ if not vim.loop.fs_stat(lazypath) then
 end
 vim.opt.rtp:prepend(vim.env.LAZY or lazypath)
 
+vim.g.lazyvim_ts_lsp = "tsgo"
+
 require("lazy").setup({
     spec = {
         -- add LazyVim and import its plugins
@@ -16,7 +18,9 @@ require("lazy").setup({
         { import = "lazyvim.plugins.extras.lang.python" },
         { import = "lazyvim.plugins.extras.lang.markdown" },
         { import = "lazyvim.plugins.extras.lang.tailwind" },
+        { import = "lazyvim.plugins.extras.lang.typst" },
         { import = "lazyvim.plugins.extras.lang.java" },
+        { import = "lazyvim.plugins.extras.lang.dotnet" },
         { import = "lazyvim.plugins.extras.linting.eslint" },
         { import = "lazyvim.plugins.extras.formatting.black" },
         { import = "lazyvim.plugins.extras.formatting.prettier" },
@@ -25,7 +29,6 @@ require("lazy").setup({
         { import = "lazyvim.plugins.extras.editor.illuminate" },
         { import = "lazyvim.plugins.extras.editor.mini-move" },
         { import = "lazyvim.plugins.extras.editor.refactoring" },
-        { import = "lazyvim.plugins.extras.lang.dotnet" },
         { import = "lazyvim.plugins.extras.coding.mini-surround" },
         { import = "lazyvim.plugins.extras.formatting.biome" },
         { import = "lazyvim.plugins.extras.util.dot" },
