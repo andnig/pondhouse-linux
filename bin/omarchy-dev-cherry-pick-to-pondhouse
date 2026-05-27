@@ -48,21 +48,31 @@ if ! gum confirm "Cherry-pick these to pondhouse/$branch and push?"; then
   exit 0
 fi
 
-# Cherry-pick in chronological order onto detached HEAD from pondhouse, then push
+# Cherry-pick in chronological order in an isolated worktree so the user's
+# main checkout (including any uncommitted changes) is never touched.
 mapfile -t ordered < <(printf "%s\n" "${selected_shas[@]}" | tac)
-git -C $OMARCHY_PATH checkout pondhouse/$branch --detach
+
+worktree_dir=$(mktemp -d -t omarchy-pondhouse-XXXXXX)
+cleanup_worktree() {
+  git -C $OMARCHY_PATH worktree remove --force "$worktree_dir" 2>/dev/null || rm -rf "$worktree_dir"
+}
+trap cleanup_worktree EXIT
+
+git -C $OMARCHY_PATH worktree add --detach "$worktree_dir" "pondhouse/$branch" >/dev/null
 
 remaining=${#ordered[@]}
 for sha in "${ordered[@]}"; do
-  if ! git -C $OMARCHY_PATH cherry-pick "$sha"; then
+  if ! git -C "$worktree_dir" cherry-pick "$sha"; then
     short=$(git -C $OMARCHY_PATH log -1 --format="%h %s" "$sha")
     ((remaining--))
+    # Keep the worktree alive so the user can finish the cherry-pick manually.
+    trap - EXIT
     echo ""
     echo -e "\e[33mCherry-pick conflict on: $short\e[0m"
     echo ""
-    echo "Resolve conflicts in $OMARCHY_PATH, then:"
+    echo "Resolve conflicts in the isolated worktree, then continue:"
     echo ""
-    echo "  cd $OMARCHY_PATH"
+    echo "  cd $worktree_dir"
     echo "  # fix conflicting files, then:"
     echo "  git add <resolved files>"
     echo "  git cherry-pick --continue"
@@ -76,21 +86,23 @@ for sha in "${ordered[@]}"; do
       echo "  # cherry-pick them one by one with: git cherry-pick <sha>"
     fi
     echo ""
-    echo "When all cherry-picks are done:"
+    echo "When all cherry-picks are done, push and clean up:"
     echo ""
-    echo "  git -C $OMARCHY_PATH push pondhouse HEAD:$branch"
-    echo "  git -C $OMARCHY_PATH checkout $branch"
+    echo "  git -C $worktree_dir push pondhouse HEAD:$branch"
+    echo "  git -C $OMARCHY_PATH worktree remove --force $worktree_dir"
     echo ""
     echo "To abort everything:"
     echo ""
-    echo "  git -C $OMARCHY_PATH cherry-pick --abort"
-    echo "  git -C $OMARCHY_PATH checkout $branch"
+    echo "  git -C $worktree_dir cherry-pick --abort"
+    echo "  git -C $OMARCHY_PATH worktree remove --force $worktree_dir"
+    echo ""
+    echo "Your main checkout at $OMARCHY_PATH was not touched."
     exit 1
   fi
 done
 
-git -C $OMARCHY_PATH push pondhouse HEAD:$branch
-git -C $OMARCHY_PATH checkout $branch
+git -C "$worktree_dir" push pondhouse HEAD:$branch
+# trap removes the worktree on EXIT
 
 echo ""
 echo -e "\e[32mDone. ${#selected_shas[@]} commit(s) pushed to pondhouse/$branch.\e[0m"

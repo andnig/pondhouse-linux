@@ -2,6 +2,15 @@
 return {
     "folke/snacks.nvim",
     opts = {
+        image = {
+            enabled = true,
+            doc = {
+                enabled = true,
+                inline = true,
+                float = true,
+                max_height = 10,
+            },
+        },
         explorer = {
             retplace_ntrw = true,
         },
