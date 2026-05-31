@@ -1,6 +1,7 @@
 ---
 name: mcp-streamlit-webapp
 description: Build standalone Streamlit web app clients for existing MCP/FastMCP servers. Use when asked to create a web dashboard or browser UI that consumes MCP tools over HTTP, especially with `streamlit_shadcn_ui`, FastMCP `Client`/`StreamableHttpTransport`, browserless smoke tests, run-command documentation, dark Streamlit dashboards, KPI cards, tables, and charts. Do not use for creating the MCP server itself.
+disable-model-invocation: true
 ---
 
 # MCP Streamlit Web App
