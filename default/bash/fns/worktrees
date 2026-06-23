@@ -1,13 +1,14 @@
 # Create a new worktree and branch from within current git directory.
 ga() {
   if [[ -z "$1" ]]; then
-    echo "Usage: ga [branch name]"
+    echo "Usage: ga [branch name] [parent folder]"
     return 1
   fi
 
   local branch="$1"
   local base="$(basename "$PWD")"
-  local wt_path="../${base}--${branch}"
+  local parent="${2:-..}"
+  local wt_path="${parent}/${base}--${branch//\//-}"
 
   git worktree add -b "$branch" "$wt_path"
   mise trust "$wt_path"
