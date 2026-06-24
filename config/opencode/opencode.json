@@ -11,22 +11,22 @@
       }
     }
   },
-  "plugin": [
-    "opencode-claude-auth",
-    //    "@tarquinen/opencode-dcp@latest",
-    "oh-my-openagent@latest"
-  ],
+  "plugin": ["opencode-claude-auth", "oh-my-openagent@4.13.0"],
   "mcp": {
     "microsoft-learn": {
       "type": "remote",
       "url": "https://learn.microsoft.com/api/mcp",
       "enabled": false
     },
-    "playwriter": {
-      "type": "local",
-      "command": ["npx", "-y", "playwriter@latest"],
-      "enabled": false
-    },
+    // "playwriter": {
+    //   "type": "local",
+    //   "command": [
+    //     "npx",
+    //     "-y",
+    //     "playwriter@latest"
+    //   ],
+    //   "enabled": false
+    // },
     "context7": {
       "type": "local",
       "command": ["npx", "-y", "@upstash/context7-mcp"],
