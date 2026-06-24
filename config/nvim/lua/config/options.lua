@@ -11,8 +11,27 @@ vim.opt.clipboard = "unnamedplus"
 vim.g.snacks_scroll = false
 vim.g.ai_cmp = false
 
-if vim.env.SSH_CONNECTION then
-    vim.g.clipboard = "osc52"
+-- Use OSC 52 when the native clipboard tool can't reach the compositor.
+-- Triggers on SSH sessions AND on Wayland shells that lost WAYLAND_DISPLAY
+-- (e.g. tmux server started under SSH, then attached physically — new shells
+-- inherit no WAYLAND_DISPLAY since tmux's update-environment doesn't refresh it).
+local in_ssh = vim.env.SSH_TTY ~= nil or vim.env.SSH_CONNECTION ~= nil or vim.env.SSH_CLIENT ~= nil
+local wayland_broken = vim.env.XDG_SESSION_TYPE == "wayland"
+    and (vim.env.WAYLAND_DISPLAY == nil or vim.env.WAYLAND_DISPLAY == "")
+
+if in_ssh or wayland_broken then
+    local osc52 = require("vim.ui.clipboard.osc52")
+    vim.g.clipboard = {
+        name = "OSC 52",
+        copy = {
+            ["+"] = osc52.copy("+"),
+            ["*"] = osc52.copy("*"),
+        },
+        paste = {
+            ["+"] = osc52.paste("+"),
+            ["*"] = osc52.paste("*"),
+        },
+    }
     vim.opt.clipboard = "unnamedplus"
 end
 
