@@ -11,7 +11,7 @@
       }
     }
   },
-  "plugin": ["opencode-claude-auth", "oh-my-openagent@4.13.0"],
+  "plugin": ["opencode-claude-auth", "oh-my-openagent@4.15.1"],
   "mcp": {
     "microsoft-learn": {
       "type": "remote",
