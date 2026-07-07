@@ -28,6 +28,7 @@ config/calcure/*
 config/opencode/*
 !config/opencode/README.md
 !config/opencode/oh-my-opencode.json
+!config/opencode/oh-my-openagent.json
 !config/opencode/opencode.json
 !config/opencode/opencode.jsonc
 !config/command/**
