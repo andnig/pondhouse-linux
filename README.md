@@ -110,7 +110,7 @@ sudo howdy test
 
 ## Sunshine
 
-0. Start sunshine service with `systemctl --user enable --now sunshine.service`
+0. Start sunshine service with `systemctl --user enable --now app-dev.lizardbyte.app.Sunshine.service`
 1. On first login to sunshine, create the username/password
 2. Copy this to `~/.config/sunshine/sunshine.conf`
 
@@ -330,7 +330,7 @@ config immediately.
 
 The problem: upstream migration scripts under `migrations/` still use raw
 `cp` to introduce new config files. When you `git pull basecamp master`,
-those migrations will either (a) write *through* the symlink into the source
+those migrations will either (a) write _through_ the symlink into the source
 repo, or (b) replace the symlink with a real directory. On top of that,
 `omarchy-refresh-config` is symlink-aware in this fork: it no-ops when the
 requested top-level config is already symlinked, creates the missing symlink
@@ -361,13 +361,13 @@ omarchy-dev-lint-migrations --since ORIG_HEAD
 The linter scans each new migration for `cp` / `tee` / `omarchy-refresh-config`
 patterns that conflict with the symlink install and classifies them:
 
-| Class | Meaning |
-|---|---|
-| `BREAKS_SYMLINK` | `cp -R` into the symlinked dir itself - would replace the symlink with a real directory. |
-| `WRITES_INTO_REPO` | `cp` into a file under a symlinked dir - the write follows the symlink into the source repo working tree. |
-| `MISSING_SILENT_FAIL` | Legacy class for old `omarchy-refresh-config` no-op behavior. New linter output should stay at 0. |
-| `MISSING_NEW_DIR` | Migration creates a new top-level entry in `~/.config/` that isn't part of the symlink set. |
-| `ALREADY_SHADOWED` | Informational - `~/.config/X` is already a real dir/file (an earlier migration broke the symlink). |
+| Class                 | Meaning                                                                                                   |
+| --------------------- | --------------------------------------------------------------------------------------------------------- |
+| `BREAKS_SYMLINK`      | `cp -R` into the symlinked dir itself - would replace the symlink with a real directory.                  |
+| `WRITES_INTO_REPO`    | `cp` into a file under a symlinked dir - the write follows the symlink into the source repo working tree. |
+| `MISSING_SILENT_FAIL` | Legacy class for old `omarchy-refresh-config` no-op behavior. New linter output should stay at 0.         |
+| `MISSING_NEW_DIR`     | Migration creates a new top-level entry in `~/.config/` that isn't part of the symlink set.               |
+| `ALREADY_SHADOWED`    | Informational - `~/.config/X` is already a real dir/file (an earlier migration broke the symlink).        |
 
 ### Manual invocation
 
@@ -445,11 +445,10 @@ drift on a machine.
 Most top-level entries in `~/.local/share/omarchy/config/` should be symlinked
 into `~/.config/`, but these are intentionally kept as real directories:
 
-| Directory | Why it stays real |
-|---|---|
-| `autostart` | Holds per-user/application autostart desktop files. |
-| `calcure` | Holds local calendar/task data and logs. |
-| `omarchy` | Holds active theme/current runtime state and local theme material. |
+| Directory   | Why it stays real                                                  |
+| ----------- | ------------------------------------------------------------------ |
+| `autostart` | Holds per-user/application autostart desktop files.                |
+| `omarchy`   | Holds active theme/current runtime state and local theme material. |
 
 The migration linter, autopatcher repair mode, and
 `repair-omarchy-configs.sh` treat these as protected. Future migration cleanup

@@ -6,9 +6,6 @@
 # chmod +x all files in folder ~/scripts
 chmod -R +x "$HOME/scripts"
 
-# Install calcure
-pipx install calcure
-
 # Install zsh and tmux plugins
 gum style --foreground 212 --bold "Installing zsh and tmux plugins..."
 rm -rf $HOME/.tmux/plugins || true
