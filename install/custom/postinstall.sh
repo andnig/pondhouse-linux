@@ -1,4 +1,7 @@
 #!/bin/bash
+OMARCHY_PATH=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+OMARCHY_INSTALL=${OMARCHY_INSTALL:-$OMARCHY_PATH/install}
+
 # gum style --foreground 212 --bold "Installing all AUR packages, if missing..."
 # mapfile -t packages < <(grep -v '^#' "$HOME/.local/share/omarchy/install/custom/custom-yay.packages" | grep -v '^$')
 # yay -Sy --noconfirm --needed "${packages[@]}"
@@ -16,7 +19,10 @@ git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm
 
 # Install node-npm
 gum style --foreground 212 --bold "Installing Node.js and npm packages..."
-bash "$HOME/.local/share/omarchy/install/custom/node-npm.sh"
+bash "$OMARCHY_INSTALL/custom/node-npm.sh"
+
+gum style --foreground 212 --bold "Installing zen-cal..."
+bash "$OMARCHY_INSTALL/custom/zen-cal.sh"
 
 # Install Tailscale
 if gum confirm "Do you want to install and start Tailscale?"; then
