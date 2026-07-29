@@ -129,10 +129,10 @@ function ntfy() {
 # fi
 
 # pnpm
-export PNPM_HOME="$HOME/.local/share/pnpm"
+export PNPM_HOME="/home/andreas/.local/share/pnpm"
 case ":$PATH:" in
-  *":$PNPM_HOME:"*) ;;
-  *) export PATH="$PNPM_HOME:$PATH" ;;
+  *":$PNPM_HOME/bin:"*) ;;
+  *) export PATH="$PNPM_HOME/bin:$PATH" ;;
 esac
 # pnpm end
 
@@ -199,13 +199,27 @@ export PATH="$PATH:~/.dotnet/tools"
 
 eval "$(zoxide init --cmd cd zsh)"
 
-bindkey -s ^s "tmux-sessionizer.sh\n"
-bindkey -s ^f "tmux-windowizer.sh\n"
-bindkey -s ^w "tmux-windowizer.sh\n"
+autoload -Uz add-zsh-hook
+_herdr_rename_tab_from_pwd() {
+  if [[ $HERDR_ENV == 1 && -n $HERDR_TAB_ID ]]; then
+    local tab_name=${PWD:t}
+    [[ -z $tab_name ]] && tab_name="/"
+    command herdr tab rename "$HERDR_TAB_ID" "$tab_name" &>/dev/null
+  fi
+}
+add-zsh-hook chpwd _herdr_rename_tab_from_pwd
+_herdr_rename_tab_from_pwd
+
+bindkey -s ^s "herdr-sessionizer.sh\n"
+bindkey -s ^f "herdr-windowizer.sh\n"
+bindkey -s ^w "herdr-windowizer.sh\n"
 
 eval "$(uv generate-shell-completion zsh)"
 
 # For QEMU/KVM libvirt
 export LIBVIRT_DEFAULT_URI='qemu:///system'
 
-
+# Auto-attach Herdr locally, but not over SSH or from an existing Herdr pane.
+if [[ -z $SSH_CONNECTION && -z $HERDR_ENV && -z $TMUX ]] && command -v herdr &>/dev/null; then
+  herdr
+fi

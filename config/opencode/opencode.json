@@ -11,7 +11,10 @@
       }
     }
   },
-  "plugin": ["opencode-claude-auth", "oh-my-openagent@4.15.1"],
+  "plugin": [
+    "opencode-claude-auth@latest"
+    // "oh-my-openagent@latest"
+  ],
   "mcp": {
     "microsoft-learn": {
       "type": "remote",
@@ -36,6 +39,11 @@
       "type": "local",
       "command": ["npx", "@playwright/mcp@latest"],
       "enabled": false
+    }
+  },
+  "permission": {
+    "external_directory": {
+      "/home/andreas/.notes/**": "allow"
     }
   }
 }

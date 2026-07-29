@@ -8,6 +8,7 @@
   "modules-center": ["clock", "custom/weather", "custom/calendar", "custom/update", "custom/voxtype", "custom/screenrecording-indicator", "custom/idle-indicator", "custom/notification-silencing-indicator"],
   "modules-right": [
     "group/tray-expander",
+    "custom/herdr",
     "bluetooth",
     "network",
     "pulseaudio",
@@ -44,6 +45,12 @@
     "on-click": "omarchy-menu",
     "on-click-right": "xdg-terminal-exec",
     "tooltip-format": "Omarchy Menu\n\nSuper + Alt + Space",
+  },
+  "custom/herdr": {
+    "exec": "$HOME/scripts/herdr-waybar.sh",
+    "return-type": "json",
+    "on-click": "$HOME/scripts/herdr-waybar-focus.sh",
+    "tooltip": true,
   },
   "custom/update": {
     "format": "",

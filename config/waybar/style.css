@@ -47,6 +47,43 @@
   margin: 0 7.5px;
 }
 
+#custom-herdr {
+  min-width: 18px;
+  margin: 0 7.5px;
+}
+
+#custom-herdr.working {
+  color: @activec;
+  animation: herdr-working-pulse 1.2s ease-in-out infinite alternate;
+}
+
+#custom-herdr.blocked {
+  color: #d47777;
+  animation: herdr-blocked-pulse 0.65s ease-in-out infinite alternate;
+}
+
+#custom-herdr.done {
+  color: #87c0ff;
+}
+
+#custom-herdr.idle {
+  opacity: 0.65;
+}
+
+#custom-herdr.offline {
+  opacity: 0.35;
+}
+
+@keyframes herdr-working-pulse {
+  from { opacity: 0.55; }
+  to { opacity: 1; }
+}
+
+@keyframes herdr-blocked-pulse {
+  from { opacity: 0.45; }
+  to { opacity: 1; }
+}
+
 #custom-expand-icon {
   margin-right: 18px;
 }

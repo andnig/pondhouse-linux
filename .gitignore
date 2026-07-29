@@ -32,3 +32,17 @@ config/opencode/*
 !config/opencode/opencode.json
 !config/opencode/opencode.jsonc
 !config/command/**
+
+__pycache__/*
+
+config/herdr/*
+!config/herdr/config.toml
+!config/herdr/plugins/
+config/herdr/plugins/*
+!config/herdr/plugins/config/
+config/herdr/plugins/config/*
+!config/herdr/plugins/config/persiyanov.reviewr/
+config/herdr/plugins/config/persiyanov.reviewr/*
+!config/herdr/plugins/config/persiyanov.reviewr/config.toml
+
+.omo/
