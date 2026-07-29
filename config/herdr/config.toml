@@ -25,7 +25,7 @@ close_tab = "prefix+shift+x"
 rename_tab = "prefix+comma"
 previous_tab = ["prefix+p", "alt+left"]
 next_tab = ["prefix+n", "alt+right"]
-switch_tab = ["prefix+1..9", "alt+1..9"]
+switch_tab = "prefix+1..9"
 
 # Workspaces (tmux sessions)
 new_workspace = "prefix+shift+c"
@@ -33,6 +33,15 @@ close_workspace = "prefix+shift+k"
 rename_workspace = "prefix+$"
 previous_workspace = ["prefix+shift+p", "alt+up"]
 next_workspace = ["prefix+shift+n", "alt+down"]
+focus_agent = ["prefix+shift+1..9", "alt+1..9"]
+
+[[keys.command]]
+key = "prefix+u"
+type = "popup"
+command = "$HOME/scripts/herdr-visible-picker.sh"
+description = "open a visible file or link"
+width = "90%"
+height = "90%"
 
 [[keys.command]]
 key = "prefix+x"
