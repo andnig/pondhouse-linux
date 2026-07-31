@@ -1,0 +1,36 @@
+#!/bin/bash
+
+# omarchy:summary=Reapply configured monitor mirror rules
+# omarchy:hidden=true
+
+MONITORS_CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/monitors.conf"
+
+[[ -f $MONITORS_CONFIG ]] || exit 0
+
+while IFS= read -r line; do
+  [[ $line =~ ^[[:space:]]*monitor[[:space:]]*=[[:space:]]*(.*)$ ]] || continue
+
+  rule=${BASH_REMATCH[1]}
+  IFS=',' read -r -a fields <<<"$rule"
+  mirror_index=-1
+
+  for ((i = 0; i < ${#fields[@]}; i++)); do
+    field=${fields[i]}
+    field=${field#"${field%%[![:space:]]*}"}
+    field=${field%"${field##*[![:space:]]}"}
+
+    if [[ $field == "mirror" ]]; then
+      mirror_index=$i
+      break
+    fi
+  done
+
+  (( mirror_index >= 0 && mirror_index + 1 < ${#fields[@]} )) || continue
+
+  without_mirror=("${fields[@]:0:mirror_index}" "${fields[@]:mirror_index + 2}")
+  without_mirror_rule=$(IFS=','; printf '%s' "${without_mirror[*]}")
+
+  # Hyprland 0.56 can remember an unresolved mirror rule without retrying it.
+  hyprctl keyword monitor "$without_mirror_rule" >/dev/null
+  hyprctl keyword monitor "$rule" >/dev/null
+done <"$MONITORS_CONFIG"

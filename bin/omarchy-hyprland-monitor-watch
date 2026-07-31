@@ -1,11 +1,16 @@
 #!/bin/bash
 
-# omarchy:summary=Watch Hyprland monitor events and recover monitor toggles when a monitor is removed
+# omarchy:summary=Watch Hyprland monitor events and recover monitor state
 
 SOCKET="$XDG_RUNTIME_DIR/hypr/$HYPRLAND_INSTANCE_SIGNATURE/.socket2.sock"
 
+omarchy-hyprland-monitor-mirrors-reapply
+
 socat -U - "UNIX-CONNECT:$SOCKET" | while read -r event; do
   case "$event" in
+    monitoraddedv2\>\>*)
+      omarchy-hyprland-monitor-mirrors-reapply
+      ;;
     monitorremoved\>\>*|monitorremovedv2\>\>*)
       omarchy-hyprland-monitor-internal recover
       omarchy-hyprland-monitor-internal-mirror recover
