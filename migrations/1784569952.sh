@@ -1,6 +1,6 @@
 echo "Install Herdr and herdr-reviewr, then link Herdr config"
 
-bash "$OMARCHY_PATH/install/custom/herdr.sh"
+omarchy-pkg-aur-add herdr-bin
 bash "$OMARCHY_PATH/install/custom/herdr-reviewr.sh"
 
 if [[ -e $HOME/.config/herdr || -L $HOME/.config/herdr ]]; then
