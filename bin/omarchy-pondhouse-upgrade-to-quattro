@@ -294,21 +294,33 @@ install_pondhouse_release() {
   local package="$RUN_DIR/downloads/pondhouse-omarchy-$PACKAGE_VERSION-x86_64.pkg.tar.zst"
   local config
 
-  download_verified "$SNAPSHOT_URL/${keyring##*/}" "$keyring" "$KEYRING_SHA256"
-  sudo pacman -U --noconfirm "$keyring"
+  if ! phase_done keyring-install; then
+    download_verified "$SNAPSHOT_URL/${keyring##*/}" "$keyring" "$KEYRING_SHA256"
+    sudo pacman -U --noconfirm "$keyring"
+    [[ $(pacman -Q pondhouse-keyring) == "pondhouse-keyring $KEYRING_VERSION" ]]
+    sudo pacman-key --list-keys "$SIGNING_FINGERPRINT" >/dev/null
+    mark_phase keyring-install
+  fi
   [[ $(pacman -Q pondhouse-keyring) == "pondhouse-keyring $KEYRING_VERSION" ]]
   sudo pacman-key --list-keys "$SIGNING_FINGERPRINT" >/dev/null
 
-  download_verified "$SNAPSHOT_URL/${package##*/}" "$package" "$PACKAGE_SHA256"
-  sudo pacman -U --noconfirm --needed "$package"
+  if ! phase_done company-package-install; then
+    download_verified "$SNAPSHOT_URL/${package##*/}" "$package" "$PACKAGE_SHA256"
+    sudo pacman -U --noconfirm --needed "$package"
+    [[ $(pacman -Q pondhouse-omarchy) == "pondhouse-omarchy $PACKAGE_VERSION" ]]
+    mark_phase company-package-install
+  fi
   [[ $(pacman -Q pondhouse-omarchy) == "pondhouse-omarchy $PACKAGE_VERSION" ]]
 
-  config=$(mktemp)
-  printf '[pondhouse]\nSigLevel = Required\nServer = %s\n' "$STABLE_URL" >"$config"
-  sudo install -Dm644 "$config" /etc/pacman.d/pondhouse.conf
-  rm -f "$config"
-  if ! grep -Fqx 'Include = /etc/pacman.d/pondhouse.conf' /etc/pacman.conf; then
-    printf '\nInclude = /etc/pacman.d/pondhouse.conf\n' | sudo tee -a /etc/pacman.conf >/dev/null
+  if ! phase_done stable-repository; then
+    config=$(mktemp)
+    printf '[pondhouse]\nSigLevel = Required\nServer = %s\n' "$STABLE_URL" >"$config"
+    sudo install -Dm644 "$config" /etc/pacman.d/pondhouse.conf
+    rm -f "$config"
+    if ! grep -Fqx 'Include = /etc/pacman.d/pondhouse.conf' /etc/pacman.conf; then
+      printf '\nInclude = /etc/pacman.d/pondhouse.conf\n' | sudo tee -a /etc/pacman.conf >/dev/null
+    fi
+    mark_phase stable-repository
   fi
   mark_phase package-install
 }
@@ -316,10 +328,22 @@ install_pondhouse_release() {
 reconcile_pondhouse() {
   export PONDHOUSE_LEGACY_CHECKOUT
   PONDHOUSE_LEGACY_CHECKOUT="$(<"$RUN_DIR/inventory/backup-path")/legacy-checkout"
-  omarchy-pondhouse-reconcile-packages
-  sudo omarchy-pondhouse-reconcile-system
-  omarchy-pondhouse-reconcile-user
-  pacman -Qkk pondhouse-omarchy
+  if ! phase_done required-packages; then
+    omarchy-pondhouse-reconcile-packages
+    mark_phase required-packages
+  fi
+  if ! phase_done system-reconciliation; then
+    sudo omarchy-pondhouse-reconcile-system
+    mark_phase system-reconciliation
+  fi
+  if ! phase_done user-reconciliation; then
+    omarchy-pondhouse-reconcile-user
+    mark_phase user-reconciliation
+  fi
+  if ! phase_done package-integrity; then
+    pacman -Qkk pondhouse-omarchy
+    mark_phase package-integrity
+  fi
   mark_phase reconciliation
 }
 
@@ -355,13 +379,20 @@ if [[ -n $RUN_DIR ]]; then
     exit 1
   }
 else
+  mkdir -p "$STATE_BASE"
   timestamp=$(date +%Y%m%d%H%M%S)
   suffix=""
   (( DRY_RUN )) && suffix=-dry-run
-  RUN_DIR="$STATE_BASE/$timestamp$suffix"
+  final_run_dir="$STATE_BASE/$timestamp$suffix"
+  while [[ -e $final_run_dir ]]; do
+    final_run_dir="$STATE_BASE/$timestamp-$RANDOM$suffix"
+  done
+  RUN_DIR="$STATE_BASE/.${final_run_dir##*/}.initializing.$$"
   mkdir -p "$RUN_DIR"
   write_inventory
-  printf '%s\n' "$BACKUP_BASE/$timestamp" >"$RUN_DIR/inventory/backup-path"
+  printf '%s\n' "$BACKUP_BASE/${final_run_dir##*/}" >"$RUN_DIR/inventory/backup-path"
+  mv "$RUN_DIR" "$final_run_dir"
+  RUN_DIR=$final_run_dir
 fi
 
 link_count=$(wc -l <"$RUN_DIR/inventory/materialized-links.tsv")
