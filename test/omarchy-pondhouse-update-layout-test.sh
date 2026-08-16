@@ -24,7 +24,7 @@ make_shared_history() {
   git -C "$seed" config user.name Test
   git -C "$seed" config user.email test@example.com
   mkdir -p "$seed/bin"
-  cp "$ROOT/bin/omarchy" "$ROOT/bin/omarchy-update-git" "$seed/bin/"
+  cp "$ROOT/bin/omarchy" "$ROOT/bin/omarchy-update" "$ROOT/bin/omarchy-update-git" "$seed/bin/"
   printf '#!/bin/bash\necho old migration\n' >"$seed/bin/omarchy-pondhouse-upgrade-to-quattro"
   chmod 755 "$seed/bin"/*
   git -C "$seed" add bin
@@ -43,7 +43,7 @@ make_shared_history() {
 make_update_shims() {
   local directory=$1
   mkdir -p "$directory"
-  for command in hyprctl omarchy-update-time; do
+  for command in hyprctl omarchy-snapshot omarchy-update-perform omarchy-update-time; do
     printf '#!/bin/bash\nexit 0\n' >"$directory/$command"
     chmod 755 "$directory/$command"
   done
@@ -61,8 +61,8 @@ direct="$TMPDIR/direct-employee"
 git clone -q "$shared" "$direct"
 git -C "$direct" reset -q --hard HEAD~1
 make_update_shims "$TMPDIR/direct-bin"
-OMARCHY_PATH="$direct" PATH="$TMPDIR/direct-bin:$direct/bin:$PATH" \
-  "$direct/bin/omarchy-update-git" >/dev/null
+OMARCHY_PATH="$direct" OMARCHY_UPDATE_LOGGED=1 PATH="$TMPDIR/direct-bin:$direct/bin:$PATH" \
+  "$direct/bin/omarchy-update" -y >/dev/null
 [[ $(git -C "$direct" rev-parse HEAD) == $(git --git-dir="$shared" rev-parse master) ]] || \
   fail "direct checkout receives shared correction"
 assert_migration_command "$direct"
@@ -90,8 +90,8 @@ git -C "$employee" remote add pondhouse "$shared"
 git -C "$employee" config user.name Employee
 git -C "$employee" config user.email employee@example.com
 make_update_shims "$TMPDIR/fork-bin"
-OMARCHY_PATH="$employee" PATH="$TMPDIR/fork-bin:$employee/bin:$PATH" \
-  "$employee/bin/omarchy-update-git" >/dev/null
+OMARCHY_PATH="$employee" OMARCHY_UPDATE_LOGGED=1 PATH="$TMPDIR/fork-bin:$employee/bin:$PATH" \
+  "$employee/bin/omarchy-update" -y >/dev/null
 git -C "$employee" merge-base --is-ancestor "$personal_commit" HEAD || fail "personal commit remains present"
 git -C "$employee" merge-base --is-ancestor "$(git --git-dir="$shared" rev-parse master)" HEAD || \
   fail "personal fork receives shared correction"
@@ -124,8 +124,9 @@ git -C "$conflict_employee" commit -qm 'employee conflict'
 conflict_commit=$(git -C "$conflict_employee" rev-parse HEAD)
 git -C "$conflict_employee" remote add pondhouse "$conflict_shared"
 make_update_shims "$TMPDIR/conflict-bin"
-if OMARCHY_PATH="$conflict_employee" PATH="$TMPDIR/conflict-bin:$conflict_employee/bin:$PATH" \
-  "$conflict_employee/bin/omarchy-update-git" >"$TMPDIR/conflict-output" 2>&1; then
+if OMARCHY_PATH="$conflict_employee" OMARCHY_UPDATE_LOGGED=1 \
+  PATH="$TMPDIR/conflict-bin:$conflict_employee/bin:$PATH" \
+  "$conflict_employee/bin/omarchy-update" -y >"$TMPDIR/conflict-output" 2>&1; then
   fail "conflicting update succeeds"
 fi
 grep -Fq 'Resolve the conflicts' "$TMPDIR/conflict-output" || fail "conflict guidance is shown"

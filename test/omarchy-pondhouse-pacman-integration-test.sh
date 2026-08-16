@@ -6,15 +6,11 @@ ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 IMAGE=${PONDHOUSE_ARCH_TEST_IMAGE:-archlinux:base-devel}
 
 if [[ ${1:-} != "--inside" ]]; then
-  command -v docker >/dev/null || {
-    echo "docker is required for the isolated pacman integration test" >&2
-    exit 1
-  }
   exec docker run --rm --privileged -v "$ROOT:/repo:ro" "$IMAGE" \
     /bin/bash /repo/test/omarchy-pondhouse-pacman-integration-test.sh --inside
 fi
 
-pacman -Sy --noconfirm --needed curl git sudo >/dev/null
+pacman -Sy --noconfirm --needed curl git inetutils sudo >/dev/null
 useradd -m -s /bin/bash tester
 printf 'tester ALL=(ALL) NOPASSWD: ALL\n' >/etc/sudoers.d/pondhouse-test
 chmod 440 /etc/sudoers.d/pondhouse-test
@@ -37,7 +33,7 @@ FINGERPRINT=$(runuser -u tester -- gpg --batch --homedir "$SIGNING_HOME" \
 runuser -u tester -- gpg --batch --homedir "$SIGNING_HOME" --export "$FINGERPRINT" \
   >"$WORK/keyring/pondhouse.gpg"
 printf '%s:4:\n' "$FINGERPRINT" >"$WORK/keyring/pondhouse-trusted"
-: >"$WORK/keyring/pondhouse-revoked"
+printf '%s\n' "$FINGERPRINT" >"$WORK/keyring/pondhouse-revoked"
 
 cat >"$WORK/keyring/PKGBUILD" <<'EOF'
 pkgname=pondhouse-keyring
@@ -93,28 +89,26 @@ mkdir -p "$PONDHOUSE_QUATTRO_ROOT"
 EOF
 chmod 755 "$WORK/upgrader"
 
-for command in omarchy-pondhouse-reconcile-packages omarchy-pondhouse-reconcile-user; do
+for command in omarchy-pondhouse-reconcile-packages omarchy-pondhouse-reconcile-system \
+  omarchy-pondhouse-reconcile-user; do
   cat >"/usr/local/bin/$command" <<'EOF'
 #!/bin/bash
 exit 0
 EOF
   chmod 755 "/usr/local/bin/$command"
 done
-cat >"/usr/local/bin/omarchy-pondhouse-reconcile-system" <<'EOF'
-#!/bin/bash
-exit 0
-EOF
-chmod 755 /usr/local/bin/omarchy-pondhouse-reconcile-system
 
 KEYRING="$PACKAGES/pondhouse-keyring-1-1-any.pkg.tar.zst"
 PACKAGE="$PACKAGES/pondhouse-omarchy-2-1-x86_64.pkg.tar.zst"
 REPOSITORY="$PACKAGES/pondhouse.db.tar.gz"
 COMMAND=/repo/bin/omarchy-pondhouse-upgrade-to-quattro
 
-runuser -u tester -- env HOME="$HOME_DIR" USER=tester SHELL=/bin/bash \
+run_migration() {
+  local state=$1
+  runuser -u tester -- env HOME="$HOME_DIR" USER=tester SHELL=/bin/bash \
   PONDHOUSE_LEGACY_ROOT="$HOME_DIR/.local/share/omarchy" \
   PONDHOUSE_QUATTRO_ROOT="$WORK/quattro-root" \
-  PONDHOUSE_MIGRATION_STATE="$WORK/state" \
+  PONDHOUSE_MIGRATION_STATE="$WORK/$state" \
   PONDHOUSE_MIGRATION_BACKUPS="$WORK/backups" \
   PONDHOUSE_UPGRADER_FILE="$WORK/upgrader" \
   PONDHOUSE_UPGRADER_SHA256="$(sha256sum "$WORK/upgrader" | cut -d' ' -f1)" \
@@ -124,14 +118,35 @@ runuser -u tester -- env HOME="$HOME_DIR" USER=tester SHELL=/bin/bash \
   PONDHOUSE_PACKAGE_SHA256="$(sha256sum "$PACKAGE" | cut -d' ' -f1)" \
   PONDHOUSE_REPOSITORY_SHA256="$(sha256sum "$REPOSITORY" | cut -d' ' -f1)" \
   PONDHOUSE_SNAPSHOT_URL="file://$PACKAGES" \
-  "$COMMAND" --yes >/dev/null
+  "$COMMAND" --yes
+}
+
+if run_migration rejected-state >/dev/null 2>&1; then
+  echo "not ok - real pacman accepted a package revoked by populated policy" >&2
+  exit 1
+fi
+[[ ! -e $HOME_DIR/upgrader-runs ]]
+echo "ok - real pacman policy rejection leaves upstream invocation count at zero"
+
+pacman -Rdd --noconfirm pondhouse-keyring >/dev/null
+pacman-key --delete "$FINGERPRINT" >/dev/null
+: >"$WORK/keyring/pondhouse-revoked"
+runuser -u tester -- bash -c "cd '$WORK/keyring' && makepkg -f --noconfirm --nodeps >/dev/null"
+mv -f "$WORK/keyring/pondhouse-keyring-1-1-any.pkg.tar.zst" "$KEYRING"
+rm -f "$KEYRING.sig" "$PACKAGES/pondhouse.db" "$PACKAGES/pondhouse.db.tar.gz" \
+  "$PACKAGES/pondhouse.db.tar.gz.sig" "$PACKAGES/pondhouse.files" "$PACKAGES/pondhouse.files.tar.gz"
+runuser -u tester -- gpg --batch --homedir "$SIGNING_HOME" --detach-sign "$KEYRING"
+runuser -u tester -- repo-add "$REPOSITORY" "$PACKAGE" >/dev/null
+runuser -u tester -- gpg --batch --homedir "$SIGNING_HOME" --detach-sign "$REPOSITORY"
+
+run_migration state >/dev/null
 
 [[ $(pacman -Q pondhouse-keyring) == "pondhouse-keyring 1-1" ]]
 [[ $(pacman -Q pondhouse-omarchy) == "pondhouse-omarchy 2-1" ]]
 EXPORTED_FINGERPRINT=$(pacman-key --export "$FINGERPRINT" |
   gpg --batch --show-keys --with-colons 2>/dev/null |
   awk -F: '$1 == "pub" { primary = 1; next } primary && $1 == "fpr" { print $10; exit }')
-[[ $EXPORTED_FINGERPRINT == "$FINGERPRINT" ]]
+[[ $EXPORTED_FINGERPRINT == $FINGERPRINT ]]
 [[ -f $WORK/state/latest/phases/pondhouse-trust-ready ]]
 [[ $(wc -l <"$HOME_DIR/upgrader-runs") == 1 ]]
 echo "ok - real pacman-key imports, trusts, populates, and exports the full primary fingerprint"

@@ -103,10 +103,7 @@ case "${1:-}" in
     ;;
   -Qqe) echo git ;;
   -Qqm) echo foreign-package ;;
-  -Qkk)
-    (( ${MOCK_KEYRING_FILES_WRONG:-0} == 0 ))
-    echo "${2:-package}: 3 total files, 0 altered files"
-    ;;
+  -Qkk) echo "${2:-package}: 3 total files, 0 altered files" ;;
   *)
     if [[ " $* " == *" -U "* ]]; then
       package=${@: -1}
@@ -368,6 +365,14 @@ if MOCK_CP_FAIL_ON_BACKUP=1 run_migration "$fixture" --yes >/dev/null 2>&1; then
 fi
 pass "interrupted preservation fails"
 run_dir=$(readlink -f "$fixture/state/latest")
+printf 'altered after preflight\n' >>"$run_dir/downloads/pondhouse-omarchy-2-x86_64.pkg.tar.zst"
+if run_migration "$fixture" --resume "$run_dir" --yes >/dev/null 2>&1; then
+  fail "resume trusts altered preflight artifacts"
+fi
+[[ ! -e $fixture/home/upgrader-runs ]] || fail "altered preflight resume invokes upstream"
+cp "$fixture/packages/pondhouse-omarchy-2-x86_64.pkg.tar.zst" \
+  "$run_dir/downloads/pondhouse-omarchy-2-x86_64.pkg.tar.zst"
+pass "resume revalidates checkpointed release artifacts"
 HOME="$fixture/home" USER=tester SHELL=/bin/zsh \
   PATH="$fixture/bin:/usr/bin:/bin" \
   PONDHOUSE_LEGACY_ROOT="$fixture/home/.local/share/omarchy" \
@@ -397,13 +402,24 @@ fi
 run_dir=$(readlink -f "$fixture/state/latest")
 [[ -f $run_dir/phases/pondhouse-trust-ready && -f $run_dir/phases/upstream-upgrade ]] || \
   fail "post-conversion failure retains trust and upstream checkpoints"
-gpg --batch --homedir "$fixture/pacman-gnupg" --yes --delete-key "$(<"$fixture/fingerprint")" >/dev/null 2>&1
-rm -f "$fixture/pacman-gnupg/populated"
 run_migration "$fixture" --resume "$run_dir" --yes >/dev/null
 (( $(wc -l <"$fixture/home/upgrader-runs") == 1 )) || fail "resume reruns completed upstream conversion"
-[[ -f $fixture/pacman-gnupg/populated && -f $fixture/pacman-gnupg/installed-package ]] || \
-  fail "resume repairs and reverifies checkpointed trust"
+[[ -f $fixture/pacman-gnupg/installed-package ]] || fail "resume retries company package installation"
 pass "resume reverifies trust and does not rerun completed upstream conversion"
+
+fixture=$(make_fixture invalid-trust-checkpoint)
+if MOCK_COMPANY_INSTALL_FAIL=1 run_migration "$fixture" --yes >/dev/null 2>&1; then
+  fail "failed company package installation fails before checkpoint validation"
+fi
+run_dir=$(readlink -f "$fixture/state/latest")
+gpg --batch --homedir "$fixture/pacman-gnupg" --yes --delete-key "$(<"$fixture/fingerprint")" >/dev/null 2>&1
+rm -f "$fixture/pacman-gnupg/populated"
+if run_migration "$fixture" --resume "$run_dir" --yes >/dev/null 2>&1; then
+  fail "resume blindly trusts an invalid trust checkpoint"
+fi
+(( $(wc -l <"$fixture/home/upgrader-runs") == 1 )) || fail "resume reruns completed upstream conversion"
+[[ ! -f $fixture/pacman-gnupg/installed-package ]] || fail "invalid checkpoint installs company package"
+pass "resume fails closed when checkpointed trust is invalid"
 
 fixture=$(make_fixture resume)
 if MOCK_UPGRADER_FAIL=1 run_migration "$fixture" --yes >/dev/null 2>&1; then

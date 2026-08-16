@@ -48,6 +48,7 @@ The 2026-08-16 run reported:
 
 ```text
 ok - isolated Arch environment starts without Pondhouse trust
+ok - real pacman policy rejection leaves upstream invocation count at zero
 ok - real pacman-key imports, trusts, populates, and exports the full primary fingerprint
 ok - real pacman installs the exact signed keyring and company packages
 ok - real pacman rejects a modified signed-package candidate

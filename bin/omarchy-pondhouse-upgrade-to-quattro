@@ -369,11 +369,15 @@ preflight_pondhouse_release() {
   local trust_dir="$RUN_DIR/downloads/pondhouse-trust"
   local public_key="$trust_dir/usr/share/pacman/keyrings/pondhouse.gpg"
 
-  phase_done release-preflight && return 0
-
-  download_verified "$SNAPSHOT_URL/${keyring##*/}" "$keyring" "$KEYRING_SHA256"
-  download_verified "$SNAPSHOT_URL/${package##*/}" "$package" "$PACKAGE_SHA256"
-  download_verified "$SNAPSHOT_URL/${repository##*/}" "$repository" "$REPOSITORY_SHA256"
+  if phase_done release-preflight; then
+    printf '%s  %s\n' "$KEYRING_SHA256" "$keyring" | sha256sum -c - >/dev/null
+    printf '%s  %s\n' "$PACKAGE_SHA256" "$package" | sha256sum -c - >/dev/null
+    printf '%s  %s\n' "$REPOSITORY_SHA256" "$repository" | sha256sum -c - >/dev/null
+  else
+    download_verified "$SNAPSHOT_URL/${keyring##*/}" "$keyring" "$KEYRING_SHA256"
+    download_verified "$SNAPSHOT_URL/${package##*/}" "$package" "$PACKAGE_SHA256"
+    download_verified "$SNAPSHOT_URL/${repository##*/}" "$repository" "$REPOSITORY_SHA256"
+  fi
   rm -rf "$trust_dir"
   mkdir -p "$(dirname "$public_key")"
   bsdtar -xOf "$keyring" usr/share/pacman/keyrings/pondhouse.gpg >"$public_key"
@@ -412,7 +416,8 @@ run_pacman_with_required_local_signatures() {
 }
 
 verify_keyring_install() {
-  [[ $(pacman -Q pondhouse-keyring 2>/dev/null) == "pondhouse-keyring $KEYRING_VERSION" ]] &&
+  local expected="pondhouse-keyring $KEYRING_VERSION"
+  [[ $(pacman -Q pondhouse-keyring 2>/dev/null) == $expected ]] &&
     sudo pacman -Qkk pondhouse-keyring >/dev/null &&
     [[ -s $PACMAN_KEYRING_DIR/pondhouse.gpg ]] &&
     [[ -f $PACMAN_KEYRING_DIR/pondhouse-trusted ]] &&
@@ -578,9 +583,13 @@ ln -sfn "$RUN_DIR" "$STATE_BASE/latest"
 printf -v resume_command '%q --resume %q --yes' "$RUN_DIR/pondhouse-upgrade-to-quattro" "$RUN_DIR"
 trap 'status=$?; if (( status != 0 )); then printf "\nMigration is incomplete. Do not reboot. Resume with:\n  %s\n" "$resume_command" >&2; fi; exit "$status"' EXIT
 
-phase_done release-preflight || preflight_pondhouse_release
+preflight_pondhouse_release
 phase_done preservation || preserve_and_materialize
-establish_pondhouse_trust
+if phase_done upstream-upgrade; then
+  verify_pondhouse_trust
+else
+  establish_pondhouse_trust
+fi
 phase_done upstream-upgrade || run_upstream_upgrade
 phase_done protected-agent-state || restore_protected_agent_state
 verify_pondhouse_trust
