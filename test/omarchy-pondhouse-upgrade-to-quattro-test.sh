@@ -218,15 +218,17 @@ EOF
 }
 
 run_migration() {
-  local fixture=$1
+  local fixture=$1 upgrader_file=$1/upgrader
   shift
+  (( ${TEST_DOWNLOAD_UPGRADER:-0} == 0 )) || upgrader_file=""
   HOME="$fixture/home" USER=tester SHELL=/bin/zsh \
     PATH="$fixture/bin:/usr/bin:/bin" \
     PONDHOUSE_LEGACY_ROOT="$fixture/home/.local/share/omarchy" \
     PONDHOUSE_QUATTRO_ROOT="$fixture/quattro-root" \
     PONDHOUSE_MIGRATION_STATE="$fixture/state" \
     PONDHOUSE_MIGRATION_BACKUPS="$fixture/backups" \
-    PONDHOUSE_UPGRADER_FILE="$fixture/upgrader" \
+    PONDHOUSE_UPGRADER_FILE="$upgrader_file" \
+    PONDHOUSE_UPGRADER_URL="file://$fixture/upgrader" \
     PONDHOUSE_UPGRADER_SHA256="$(sha256sum "$fixture/upgrader" | cut -d' ' -f1)" \
     PONDHOUSE_PACKAGE_VERSION=2 PONDHOUSE_KEYRING_VERSION=1 \
     PONDHOUSE_SIGNING_FINGERPRINT="${TEST_SIGNING_FINGERPRINT:-$(<"$fixture/fingerprint")}" \
@@ -308,6 +310,11 @@ grep -Fqx 'LocalFileSigLevel = Optional' "$fixture/pacman.conf" || fail "migrati
 (( $(wc -l <"$fixture/home/reconciliation-actions") == 3 )) || fail "migration runs package-owned reconcilers"; pass "migration runs package-owned reconcilers"
 [[ -f $run_dir/phases/complete ]] || fail "migration records completion"; pass "migration records completion"
 [[ ! -e $fixture/home/rebooted ]] || fail "migration suppresses upstream reboot"; pass "migration suppresses upstream reboot"
+
+fixture=$(make_fixture downloaded-upgrader)
+TEST_DOWNLOAD_UPGRADER=1 run_migration "$fixture" --yes >/dev/null
+[[ -s $fixture/home/upgrader-runs ]] || fail "downloaded unsigned upstream upgrader runs"
+pass "downloaded unsigned upstream upgrader runs"
 
 fixture=$(make_fixture altered-keyring)
 keyring_hash=$(sha256sum "$fixture/packages/pondhouse-keyring-1-any.pkg.tar.zst" | cut -d' ' -f1)

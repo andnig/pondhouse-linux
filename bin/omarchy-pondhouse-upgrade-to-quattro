@@ -341,7 +341,9 @@ download_verified() {
   local url=$1 destination=$2 checksum=$3 signature=${4:-1}
   curl -fsSL --retry 3 "$url" -o "$destination"
   printf '%s  %s\n' "$checksum" "$destination" | sha256sum -c - >/dev/null
-  (( signature )) && curl -fsSL --retry 3 "$url.sig" -o "$destination.sig"
+  if (( signature )); then
+    curl -fsSL --retry 3 "$url.sig" -o "$destination.sig"
+  fi
 }
 
 key_primary_fingerprint() {
