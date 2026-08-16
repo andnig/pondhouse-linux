@@ -534,6 +534,13 @@ install_pondhouse_release() {
   mark_phase package-install
 }
 
+sync_pondhouse_repository() {
+  phase_done repository-sync && return 0
+  sudo pacman -Sy --noconfirm
+  pacman -Sl pondhouse >/dev/null
+  mark_phase repository-sync
+}
+
 reconcile_pondhouse() {
   export PONDHOUSE_LEGACY_CHECKOUT
   PONDHOUSE_LEGACY_CHECKOUT="$(<"$RUN_DIR/inventory/backup-path")/legacy-checkout"
@@ -649,6 +656,7 @@ phase_done upstream-upgrade || run_upstream_upgrade
 phase_done protected-agent-state || restore_protected_agent_state
 verify_pondhouse_trust
 phase_done package-install || install_pondhouse_release
+sync_pondhouse_repository
 phase_done reconciliation || reconcile_pondhouse
 phase_done defaults-restored || restore_defaults
 mark_phase complete
