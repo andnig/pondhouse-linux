@@ -179,6 +179,7 @@ materialization_size() {
   local path size total=0
   while IFS=$'\t' read -r path _; do
     [[ -n $path ]] || continue
+    [[ -L $path ]] && points_into_legacy_root "$path" || continue
     size=$(du -sbH -- "$path" 2>/dev/null | cut -f1 || printf '0')
     [[ $size =~ ^[0-9]+$ ]] && total=$((total + size))
   done <"$RUN_DIR/inventory/materialized-links.tsv"
@@ -186,27 +187,46 @@ materialization_size() {
 }
 
 materialize_link() {
-  local path=$1 parent temporary
-  [[ -L $path ]] || return 0
+  local path=$1 original source temporary
+  original="$path.pondhouse-legacy-link"
+  temporary="$path.pondhouse-materialized"
+
+  if [[ ! -L $path ]]; then
+    if [[ -e $path ]]; then
+      rm -f -- "$original"
+      return 0
+    elif [[ -L $original && -e $temporary ]]; then
+      mv -T -- "$temporary" "$path"
+      rm -- "$original"
+      return 0
+    fi
+    return 0
+  fi
   points_into_legacy_root "$path" || return 0
 
-  parent=$(dirname -- "$path")
-  temporary=$(mktemp --tmpdir="$parent" .pondhouse-materialize.XXXXXX)
-  rm -f "$temporary"
-  if ! cp -aH --reflink=auto -- "$path" "$temporary"; then
+  source=$path
+  rm -rf -- "$temporary"
+  if ! cp -aH --reflink=auto -- "$source" "$temporary"; then
     rm -rf -- "$temporary"
     echo "Failed to copy $path; the original link is unchanged" >&2
     return 1
   fi
-  rm -- "$path"
-  mv -- "$temporary" "$path"
+  mv -T -- "$path" "$original"
+  if ! mv -T -- "$temporary" "$path"; then
+    mv -T -- "$original" "$path"
+    return 1
+  fi
+  rm -- "$original"
 }
 
 preserve_and_materialize() {
   local available backup_bytes backup_dir partial_backup required reserve path
+  backup_dir=$(<"$RUN_DIR/inventory/backup-path")
   required=$(materialization_size)
-  backup_bytes=$(du -sb -- "$LEGACY_ROOT" | cut -f1)
-  required=$((required + backup_bytes))
+  if [[ ! -d $backup_dir ]]; then
+    backup_bytes=$(du -sb -- "$LEGACY_ROOT" | cut -f1)
+    required=$((required + backup_bytes))
+  fi
   available=$(df --output=avail -B1 "$HOME" | tail -n1 | tr -d ' ')
   reserve=$((2 * 1024 * 1024 * 1024))
   if (( available < required + reserve )); then
@@ -214,12 +234,13 @@ preserve_and_materialize() {
     exit 1
   fi
 
-  backup_dir=$(<"$RUN_DIR/inventory/backup-path")
   if [[ ! -d $backup_dir ]]; then
     partial_backup="$backup_dir.partial"
     rm -rf -- "$partial_backup"
     mkdir -p "$(dirname -- "$backup_dir")"
-    cp -a --reflink=auto "$LEGACY_ROOT" "$partial_backup"
+    mkdir "$partial_backup"
+    cp -a --reflink=auto "$LEGACY_ROOT" "$partial_backup/legacy-checkout"
+    cp -a "$RUN_DIR/inventory" "$partial_backup/inventory"
     mv "$partial_backup" "$backup_dir"
   fi
   while IFS=$'\t' read -r path _; do
@@ -294,7 +315,7 @@ install_pondhouse_release() {
 
 reconcile_pondhouse() {
   export PONDHOUSE_LEGACY_CHECKOUT
-  PONDHOUSE_LEGACY_CHECKOUT=$(<"$RUN_DIR/inventory/backup-path")
+  PONDHOUSE_LEGACY_CHECKOUT="$(<"$RUN_DIR/inventory/backup-path")/legacy-checkout"
   omarchy-pondhouse-reconcile-packages
   sudo omarchy-pondhouse-reconcile-system
   omarchy-pondhouse-reconcile-user
@@ -367,7 +388,10 @@ if (( ! YES )) && ! gum confirm "Continue with the Pondhouse Quattro migration?"
   exit 0
 fi
 
-cp "$0" "$RUN_DIR/pondhouse-upgrade-to-quattro"
+saved_command="$RUN_DIR/pondhouse-upgrade-to-quattro"
+if [[ $(readlink -f -- "$0") != $(readlink -f -- "$saved_command" 2>/dev/null || true) ]]; then
+  cp "$0" "$saved_command"
+fi
 chmod 700 "$RUN_DIR/pondhouse-upgrade-to-quattro"
 ln -sfn "$RUN_DIR" "$STATE_BASE/latest"
 printf -v resume_command '%q --resume %q --yes' "$RUN_DIR/pondhouse-upgrade-to-quattro" "$RUN_DIR"

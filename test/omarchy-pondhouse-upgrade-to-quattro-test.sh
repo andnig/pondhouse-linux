@@ -78,7 +78,7 @@ EOF
 #!/bin/bash
 destination=${@: -1}
 /usr/bin/cp "$@"
-if (( ${MOCK_CP_FAIL_ON_BACKUP:-0} == 1 )) && [[ $destination == */backups/*.partial ]]; then
+if (( ${MOCK_CP_FAIL_ON_BACKUP:-0} == 1 )) && [[ $destination == */backups/*.partial/legacy-checkout ]]; then
   exit 1
 fi
 EOF
@@ -146,7 +146,8 @@ fixture=$(make_fixture complete)
 run_migration "$fixture" --yes >/dev/null
 run_dir=$(readlink -f "$fixture/state/latest")
 backup_dir=$(<"$run_dir/inventory/backup-path")
-[[ -f $backup_dir/config/opencode/secret.json ]] || fail "migration keeps a private data backup"; pass "migration keeps a private data backup"
+[[ -f $backup_dir/legacy-checkout/config/opencode/secret.json ]] || fail "migration keeps a private data backup"; pass "migration keeps a private data backup"
+[[ -f $backup_dir/inventory/legacy-status.txt ]] || fail "migration permanently backs up evidence"; pass "migration permanently backs up evidence"
 [[ ! -L $fixture/home/.agents ]] || fail "migration materializes selected top-level link"; pass "migration materializes selected top-level link"
 [[ ! -L $fixture/home/.config/nested ]] || fail "migration materializes selected config link"; pass "migration materializes selected config link"
 [[ ! -L $fixture/home/.agents/nested-legacy ]] || fail "migration materializes nested legacy link"; pass "migration materializes nested legacy link"
@@ -162,7 +163,19 @@ if MOCK_CP_FAIL_ON_BACKUP=1 run_migration "$fixture" --yes >/dev/null 2>&1; then
 fi
 pass "interrupted preservation fails"
 run_dir=$(readlink -f "$fixture/state/latest")
-run_migration "$fixture" --resume "$run_dir" --yes >/dev/null
+HOME="$fixture/home" USER=tester SHELL=/bin/zsh \
+  PATH="$fixture/bin:/usr/bin:/bin" \
+  PONDHOUSE_LEGACY_ROOT="$fixture/home/.local/share/omarchy" \
+  PONDHOUSE_QUATTRO_ROOT="$fixture/quattro-root" \
+  PONDHOUSE_MIGRATION_STATE="$fixture/state" \
+  PONDHOUSE_MIGRATION_BACKUPS="$fixture/backups" \
+  PONDHOUSE_UPGRADER_FILE="$fixture/upgrader" \
+  PONDHOUSE_UPGRADER_SHA256="$(sha256sum "$fixture/upgrader" | cut -d' ' -f1)" \
+  PONDHOUSE_PACKAGE_VERSION=2 PONDHOUSE_KEYRING_VERSION=1 \
+  PONDHOUSE_PACKAGE_SHA256="$(sha256sum "$fixture/packages/pondhouse-omarchy-2-x86_64.pkg.tar.zst" | cut -d' ' -f1)" \
+  PONDHOUSE_KEYRING_SHA256="$(sha256sum "$fixture/packages/pondhouse-keyring-1-any.pkg.tar.zst" | cut -d' ' -f1)" \
+  PONDHOUSE_SNAPSHOT_URL="file://$fixture/packages" \
+  "$run_dir/pondhouse-upgrade-to-quattro" --resume "$run_dir" --yes >/dev/null
 [[ -f $run_dir/phases/complete ]] || fail "interrupted preservation resumes"; pass "interrupted preservation resumes"
 (( $(find "$fixture/backups" -mindepth 1 -maxdepth 1 -type d ! -name '*.partial' | wc -l) == 1 )) || fail "resume creates one permanent backup"; pass "resume creates one permanent backup"
 
