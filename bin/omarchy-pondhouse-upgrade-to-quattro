@@ -1,0 +1,373 @@
+#!/bin/bash
+
+# omarchy:summary=Upgrade Pondhouse Omarchy 3 to package-backed Quattro
+# omarchy:group=pondhouse
+# omarchy:name=upgrade-to-quattro
+# omarchy:args=[--dry-run] [--yes] [--resume RUN-DIRECTORY]
+# omarchy:examples=omarchy pondhouse upgrade-to-quattro --dry-run
+
+set -euo pipefail
+umask 077
+
+UPGRADER_URL=${PONDHOUSE_UPGRADER_URL:-https://raw.githubusercontent.com/basecamp/omarchy/f0020448ca87329199de7cb12f2015ebc4a3e5e7/bin/omarchy-upgrade-to-quattro}
+UPGRADER_SHA256=${PONDHOUSE_UPGRADER_SHA256:-fd5f311313c87bf25429220a3c4e65da755ee0c2e78648a20e30e86133495fd4}
+PACKAGE_VERSION=${PONDHOUSE_PACKAGE_VERSION:-2026.08.15-11}
+KEYRING_VERSION=${PONDHOUSE_KEYRING_VERSION:-2026.08.15-1}
+KEYRING_SHA256=${PONDHOUSE_KEYRING_SHA256:-00eee885edd70e263c00783aee76ec31a1c8b8b644d91bec4ecd5f2bf4c44e33}
+PACKAGE_SHA256=${PONDHOUSE_PACKAGE_SHA256:-cbef34a2116d961c5b67b9492726e9004525770dbf62d4740b715c2c2b490a96}
+SIGNING_FINGERPRINT=${PONDHOUSE_SIGNING_FINGERPRINT:-2E4DE2E86D2D5D4EF994B0A849EE396C83FEEC69}
+SNAPSHOT_URL=${PONDHOUSE_SNAPSHOT_URL:-https://packages.pondhouse-data.com/snapshots/$PACKAGE_VERSION/x86_64}
+STABLE_URL=${PONDHOUSE_STABLE_URL:-https://packages.pondhouse-data.com/stable/\$arch}
+LEGACY_ROOT=${PONDHOUSE_LEGACY_ROOT:-$HOME/.local/share/omarchy}
+STATE_BASE=${PONDHOUSE_MIGRATION_STATE:-${XDG_STATE_HOME:-$HOME/.local/state}/pondhouse/quattro-migrations}
+QUATTRO_ROOT=${PONDHOUSE_QUATTRO_ROOT:-/usr/share/omarchy}
+DRY_RUN=0
+YES=0
+RUN_DIR=""
+
+usage() {
+  cat <<'EOF'
+Usage: omarchy-pondhouse-upgrade-to-quattro [--dry-run] [--yes] [--resume RUN-DIRECTORY]
+
+Preserve a checkout-backed Pondhouse Omarchy 3 installation, run Basecamp's
+checksum-pinned Quattro upgrader, and install the released Pondhouse package.
+
+Options:
+  --dry-run         Record and display the migration inventory only
+  --yes             Skip the confirmation prompt
+  --resume RUN-DIR  Resume an interrupted migration from its private state
+  -h, --help        Show this help
+EOF
+}
+
+while (( $# )); do
+  case "$1" in
+    --dry-run) DRY_RUN=1 ;;
+    -y|--yes) YES=1 ;;
+    --resume)
+      (( $# >= 2 )) || { echo "--resume requires a run directory" >&2; exit 2; }
+      RUN_DIR=$2
+      shift
+      ;;
+    -h|--help) usage; exit 0 ;;
+    *) echo "Unknown option: $1" >&2; usage >&2; exit 2 ;;
+  esac
+  shift
+done
+
+if (( EUID == 0 )); then
+  echo "Run this migration as the employee; it uses sudo only for machine changes" >&2
+  exit 1
+fi
+
+[[ -e $LEGACY_ROOT ]] && LEGACY_ROOT=$(readlink -f -- "$LEGACY_ROOT")
+
+phase_done() {
+  [[ -f $RUN_DIR/phases/$1 ]]
+}
+
+mark_phase() {
+  printf '%s\n' "$(date --iso-8601=seconds)" >"$RUN_DIR/phases/$1"
+}
+
+is_excluded() {
+  local path=$1
+  [[ $path == "$HOME/.claude" || $path == "$HOME/.claude"/* ||
+    $path == "$HOME/.codex" || $path == "$HOME/.codex"/* ||
+    $path == "$HOME/.pi" || $path == "$HOME/.pi"/* ||
+    $path == */backup || $path == */backup/* ||
+    $path == */backups || $path == */backups/* ||
+    $path == */*_bkp || $path == */*_bkp/* ]]
+}
+
+points_into_legacy_root() {
+  local resolved
+  resolved=$(readlink -f -- "$1" 2>/dev/null || true)
+  [[ -n $resolved && ( $resolved == "$LEGACY_ROOT" || $resolved == "$LEGACY_ROOT"/* ) ]]
+}
+
+scan_roots() {
+  local roots=("$HOME/.config")
+  local path opencode_config=${OPENCODE_CONFIG:-$HOME/.config/opencode}
+
+  for path in "$HOME/.agents" "$opencode_config" "$HOME/.ssh" "$HOME/scripts" "$HOME/source" "$HOME/.zshrc"; do
+    [[ -e $path || -L $path ]] && roots+=("$path")
+  done
+  printf '%s\0' "${roots[@]}" | sort -zu
+}
+
+find_legacy_links() {
+  local root path
+
+  while IFS= read -r -d '' root; do
+    [[ -e $root || -L $root ]] || continue
+    if [[ -L $root ]] && ! is_excluded "$root" && points_into_legacy_root "$root"; then
+      printf '%s\0' "$root"
+    fi
+    while IFS= read -r -d '' path; do
+      is_excluded "$path" && continue
+      points_into_legacy_root "$path" && printf '%s\0' "$path"
+    done < <(find -H "$root" -type l -print0 2>/dev/null)
+  done < <(scan_roots) | sort -zu
+}
+
+write_command_output() {
+  local destination=$1
+  shift
+  "$@" >"$destination" 2>&1 || true
+}
+
+write_git_inventory() {
+  [[ -d $LEGACY_ROOT/.git ]] || return 0
+
+  write_command_output "$RUN_DIR/inventory/legacy-commit.txt" git -C "$LEGACY_ROOT" rev-parse HEAD
+  write_command_output "$RUN_DIR/inventory/legacy-branch.txt" git -C "$LEGACY_ROOT" branch --show-current
+  write_command_output "$RUN_DIR/inventory/legacy-status.txt" git -C "$LEGACY_ROOT" status --short --branch
+  write_command_output "$RUN_DIR/inventory/legacy-worktree.patch" git -C "$LEGACY_ROOT" diff --binary
+  write_command_output "$RUN_DIR/inventory/legacy-index.patch" git -C "$LEGACY_ROOT" diff --cached --binary
+  write_command_output "$RUN_DIR/inventory/legacy-untracked.txt" git -C "$LEGACY_ROOT" ls-files --others --exclude-standard
+
+  git -C "$LEGACY_ROOT" ls-files --others --ignored --exclude-standard -z 2>/dev/null |
+    while IFS= read -r -d '' path; do
+      local_path="$LEGACY_ROOT/$path"
+      size=$(du -sb -- "$local_path" 2>/dev/null | cut -f1 || printf '0')
+      printf '%s\t%s\n' "$size" "$path"
+    done >"$RUN_DIR/inventory/legacy-ignored.tsv"
+  awk -F '\t' '{ count += 1; bytes += $1 } END { printf "paths=%d\nbytes=%d\n", count, bytes }' \
+    "$RUN_DIR/inventory/legacy-ignored.tsv" >"$RUN_DIR/inventory/legacy-ignored-summary.txt"
+}
+
+write_inventory() {
+  local path target
+
+  mkdir -p "$RUN_DIR/inventory" "$RUN_DIR/phases" "$RUN_DIR/downloads"
+  chmod 700 "$RUN_DIR" "$RUN_DIR/inventory" "$RUN_DIR/phases" "$RUN_DIR/downloads"
+  {
+    printf 'created=%s\n' "$(date --iso-8601=seconds)"
+    printf 'user=%s\n' "$USER"
+    printf 'host=%s\n' "$(hostname)"
+    printf 'shell=%s\n' "${SHELL:-unknown}"
+    printf 'legacy_root=%s\n' "$LEGACY_ROOT"
+    printf 'pondhouse_package=%s\n' "$PACKAGE_VERSION"
+  } >"$RUN_DIR/inventory/system.txt"
+
+  write_git_inventory
+  write_command_output "$RUN_DIR/inventory/packages-all.txt" pacman -Q
+  write_command_output "$RUN_DIR/inventory/packages-explicit.txt" pacman -Qqe
+  write_command_output "$RUN_DIR/inventory/packages-foreign.txt" pacman -Qqm
+  write_command_output "$RUN_DIR/inventory/system-services-enabled.txt" systemctl list-unit-files --state=enabled --no-legend
+  write_command_output "$RUN_DIR/inventory/system-services.txt" systemctl list-units --type=service --all --no-legend
+  write_command_output "$RUN_DIR/inventory/user-services-enabled.txt" systemctl --user list-unit-files --state=enabled --no-legend
+  write_command_output "$RUN_DIR/inventory/user-services.txt" systemctl --user list-units --type=service --all --no-legend
+  write_command_output "$RUN_DIR/inventory/default-browser.txt" env -u BROWSER xdg-settings get default-web-browser
+  sed -n 's/^export EDITOR=//p' "$HOME/.config/uwsm/default" 2>/dev/null | head -n1 \
+    >"$RUN_DIR/inventory/default-editor.txt" || true
+  write_command_output "$RUN_DIR/inventory/default-applications.txt" find "$HOME/.local/share/applications" -maxdepth 1 -type f -printf '%f\n'
+  write_command_output "$RUN_DIR/inventory/onboarding-state.txt" find "$HOME/.local/state/omarchy" "$HOME/.config/omarchy" -maxdepth 3 -type f -printf '%p\t%s bytes\n'
+
+  while IFS= read -r -d '' path; do
+    target=$(readlink -- "$path")
+    printf '%s\t%s\t%s\n' "$path" "$target" "$(readlink -f -- "$path")"
+  done < <(find_legacy_links) >"$RUN_DIR/inventory/materialized-links.tsv"
+  mark_phase inventory
+}
+
+materialization_size() {
+  local path size total=0
+  while IFS=$'\t' read -r path _; do
+    [[ -n $path ]] || continue
+    size=$(du -sbH -- "$path" 2>/dev/null | cut -f1 || printf '0')
+    [[ $size =~ ^[0-9]+$ ]] && total=$((total + size))
+  done <"$RUN_DIR/inventory/materialized-links.tsv"
+  printf '%s\n' "$total"
+}
+
+materialize_link() {
+  local path=$1 parent temporary
+  [[ -L $path ]] || return 0
+  points_into_legacy_root "$path" || return 0
+
+  parent=$(dirname -- "$path")
+  temporary=$(mktemp --tmpdir="$parent" .pondhouse-materialize.XXXXXX)
+  rm -f "$temporary"
+  if ! cp -aH --reflink=auto -- "$path" "$temporary"; then
+    rm -rf -- "$temporary"
+    echo "Failed to copy $path; the original link is unchanged" >&2
+    return 1
+  fi
+  rm -- "$path"
+  mv -- "$temporary" "$path"
+}
+
+preserve_and_materialize() {
+  local available backup_bytes required reserve path
+  required=$(materialization_size)
+  backup_bytes=$(du -sb -- "$LEGACY_ROOT" | cut -f1)
+  required=$((required + backup_bytes))
+  available=$(df --output=avail -B1 "$HOME" | tail -n1 | tr -d ' ')
+  reserve=$((2 * 1024 * 1024 * 1024))
+  if (( available < required + reserve )); then
+    echo "Not enough free space to materialize links and retain a 2 GiB safety margin" >&2
+    exit 1
+  fi
+
+  cp -a --reflink=auto "$LEGACY_ROOT" "$RUN_DIR/legacy-checkout"
+  while IFS=$'\t' read -r path _; do
+    [[ -n $path ]] || continue
+    echo "Materializing $path"
+    materialize_link "$path"
+  done < <(awk -F '\t' '{ print length($1) "\t" $0 }' "$RUN_DIR/inventory/materialized-links.tsv" | sort -n | cut -f2-)
+  mark_phase preservation
+}
+
+stage_upgrader() {
+  local destination=$1
+  if [[ -n ${PONDHOUSE_UPGRADER_FILE:-} ]]; then
+    cp "$PONDHOUSE_UPGRADER_FILE" "$destination"
+  else
+    curl -fsSL --retry 3 "$UPGRADER_URL" -o "$destination"
+  fi
+  printf '%s  %s\n' "$UPGRADER_SHA256" "$destination" | sha256sum -c - >/dev/null
+  chmod 700 "$destination"
+}
+
+run_upstream_upgrade() {
+  local upgrader="$RUN_DIR/downloads/omarchy-upgrade-to-quattro"
+  local no_reboot_bin="$RUN_DIR/downloads/no-reboot-bin"
+  stage_upgrader "$upgrader"
+  mkdir -p "$no_reboot_bin"
+  cat >"$no_reboot_bin/gum" <<'EOF'
+#!/bin/bash
+if [[ ${1:-} == "confirm" && ${2:-} == "Reboot to complete Quattro upgrade now?" ]]; then
+  exit 1
+fi
+exec /usr/bin/gum "$@"
+EOF
+  chmod 700 "$no_reboot_bin/gum"
+  touch "$RUN_DIR/phases/upstream-attempted"
+  echo "Running the checksum-pinned Basecamp Quattro upgrader"
+  PATH="$no_reboot_bin:$PATH" PONDHOUSE_QUATTRO_ROOT="$QUATTRO_ROOT" \
+    "$upgrader" --yes --channel stable
+  mark_phase upstream-upgrade
+}
+
+download_verified() {
+  local url=$1 destination=$2 checksum=$3
+  curl -fsSL --retry 3 "$url" -o "$destination"
+  printf '%s  %s\n' "$checksum" "$destination" | sha256sum -c - >/dev/null
+  curl -fsSL --retry 3 "$url.sig" -o "$destination.sig"
+}
+
+install_pondhouse_release() {
+  local keyring="$RUN_DIR/downloads/pondhouse-keyring-$KEYRING_VERSION-any.pkg.tar.zst"
+  local package="$RUN_DIR/downloads/pondhouse-omarchy-$PACKAGE_VERSION-x86_64.pkg.tar.zst"
+  local config
+
+  download_verified "$SNAPSHOT_URL/${keyring##*/}" "$keyring" "$KEYRING_SHA256"
+  sudo pacman -U --noconfirm "$keyring"
+  sudo pacman-key --list-keys "$SIGNING_FINGERPRINT" >/dev/null
+
+  download_verified "$SNAPSHOT_URL/${package##*/}" "$package" "$PACKAGE_SHA256"
+  sudo pacman -U --noconfirm --needed "$package"
+  [[ $(pacman -Q pondhouse-omarchy) == "pondhouse-omarchy $PACKAGE_VERSION" ]]
+
+  config=$(mktemp)
+  printf '[pondhouse]\nSigLevel = Required\nServer = %s\n' "$STABLE_URL" >"$config"
+  sudo install -Dm644 "$config" /etc/pacman.d/pondhouse.conf
+  rm -f "$config"
+  if ! grep -Fqx 'Include = /etc/pacman.d/pondhouse.conf' /etc/pacman.conf; then
+    printf '\nInclude = /etc/pacman.d/pondhouse.conf\n' | sudo tee -a /etc/pacman.conf >/dev/null
+  fi
+  mark_phase package-install
+}
+
+reconcile_pondhouse() {
+  export PONDHOUSE_LEGACY_CHECKOUT="$RUN_DIR/legacy-checkout"
+  omarchy-pondhouse-reconcile-packages
+  sudo omarchy-pondhouse-reconcile-system
+  omarchy-pondhouse-reconcile-user
+  pacman -Qkk pondhouse-omarchy
+  mark_phase reconciliation
+}
+
+restore_defaults() {
+  local browser editor
+
+  if [[ -s $RUN_DIR/inventory/default-browser.txt ]] && command -v xdg-settings >/dev/null 2>&1; then
+    browser=$(<"$RUN_DIR/inventory/default-browser.txt")
+    [[ -n $browser ]] && env -u BROWSER xdg-settings set default-web-browser "$browser"
+  fi
+  if [[ -s $RUN_DIR/inventory/default-editor.txt ]] && command -v omarchy-default-editor >/dev/null 2>&1; then
+    editor=$(<"$RUN_DIR/inventory/default-editor.txt")
+    editor=${editor#\'}
+    editor=${editor%\'}
+    editor=${editor#\"}
+    editor=${editor%\"}
+    editor=${editor%% *}
+    [[ $editor == "zed" ]] && editor="zeditor"
+    case "$editor" in
+      code|cursor|zeditor|sublime_text|helix|vim|emacs|nvim) omarchy-default-editor "$editor" ;;
+    esac
+  fi
+  mark_phase defaults-restored
+}
+
+if [[ -n $RUN_DIR ]]; then
+  RUN_DIR=$(readlink -m -- "$RUN_DIR")
+  [[ $RUN_DIR == "$STATE_BASE"/* && -f $RUN_DIR/inventory/system.txt ]] || {
+    echo "Invalid Pondhouse migration run directory: $RUN_DIR" >&2
+    exit 1
+  }
+else
+  timestamp=$(date +%Y%m%d%H%M%S)
+  suffix=$([[ $DRY_RUN == 1 ]] && printf '%s' -dry-run || true)
+  RUN_DIR="$STATE_BASE/$timestamp$suffix"
+  mkdir -p "$RUN_DIR"
+  write_inventory
+fi
+
+link_count=$(wc -l <"$RUN_DIR/inventory/materialized-links.tsv")
+required_bytes=$(materialization_size)
+echo "Pondhouse Omarchy 3 to package-backed Quattro migration"
+echo "Legacy checkout: $LEGACY_ROOT"
+echo "Private migration record: $RUN_DIR"
+echo "Checkout-backed links: $link_count"
+cut -f1 "$RUN_DIR/inventory/materialized-links.tsv" | sed 's/^/  /'
+echo "Estimated materialization space: $(numfmt --to=iec-i --suffix=B "$required_bytes")"
+echo "Pinned Pondhouse package: $PACKAGE_VERSION"
+
+if (( DRY_RUN )); then
+  echo "Dry run complete. The private inventory was recorded; no machine state changed."
+  exit 0
+fi
+
+[[ -d $LEGACY_ROOT/.git || -d $QUATTRO_ROOT ]] || {
+  echo "Neither the legacy checkout nor Omarchy Quattro was found" >&2
+  exit 1
+}
+
+if (( ! YES )) && ! gum confirm "Continue with the Pondhouse Quattro migration?"; then
+  exit 0
+fi
+
+cp "$0" "$RUN_DIR/pondhouse-upgrade-to-quattro"
+chmod 700 "$RUN_DIR/pondhouse-upgrade-to-quattro"
+ln -sfn "$RUN_DIR" "$STATE_BASE/latest"
+printf -v resume_command '%q --resume %q --yes' "$RUN_DIR/pondhouse-upgrade-to-quattro" "$RUN_DIR"
+trap 'status=$?; if (( status != 0 )); then printf "\nMigration is incomplete. Do not reboot. Resume with:\n  %s\n" "$resume_command" >&2; fi; exit "$status"' EXIT
+
+phase_done preservation || preserve_and_materialize
+phase_done upstream-upgrade || run_upstream_upgrade
+phase_done package-install || install_pondhouse_release
+phase_done reconciliation || reconcile_pondhouse
+phase_done defaults-restored || restore_defaults
+mark_phase complete
+trap - EXIT
+
+cat <<EOF
+
+Pondhouse Quattro migration completed.
+Migration records and permanent backup: $RUN_DIR
+
+Reboot when ready, then run omarchy-pondhouse-parity.
+EOF
