@@ -278,6 +278,25 @@ preserve_and_materialize() {
   mark_phase preservation
 }
 
+browser_processes_running() {
+  pgrep -x chromium >/dev/null 2>&1 ||
+    pgrep -x chrome >/dev/null 2>&1 ||
+    pgrep -x brave >/dev/null 2>&1 ||
+    pgrep -x zen >/dev/null 2>&1 ||
+    pgrep -x zen-bin >/dev/null 2>&1 ||
+    pgrep -x firefox >/dev/null 2>&1
+}
+
+close_browsers() {
+  while true; do
+    gum confirm "Close all browser windows, then continue" || continue
+    browser_processes_running || break
+    echo "Browser processes are still running. Close all browsers, then confirm again."
+  done
+
+  rm -f "$HOME/.config/chromium"/Singleton{Lock,Socket,Cookie}
+}
+
 stage_upgrader() {
   local destination=$1
   if [[ -n ${PONDHOUSE_UPGRADER_FILE:-} ]]; then
@@ -618,6 +637,7 @@ ln -sfn "$RUN_DIR" "$STATE_BASE/latest"
 printf -v resume_command '%q --resume %q --yes' "$RUN_DIR/pondhouse-upgrade-to-quattro" "$RUN_DIR"
 trap 'status=$?; if (( status != 0 )); then printf "\nMigration is incomplete. Do not reboot. Resume with:\n  %s\n" "$resume_command" >&2; fi; exit "$status"' EXIT
 
+close_browsers
 preflight_pondhouse_release
 phase_done preservation || preserve_and_materialize
 if phase_done upstream-upgrade; then
