@@ -55,7 +55,19 @@ else
   # Standard repo: pull from default remote
   omarchy-update-time
 
-  git -C $OMARCHY_PATH pull --autostash
+  if ! git -C $OMARCHY_PATH pull --autostash; then
+    echo ""
+    echo -e "\e[31mUpdate conflict with the shared Pondhouse repository.\e[0m"
+    echo ""
+    echo "Your local work was not reset or discarded. Resolve the conflicts, then run:"
+    echo "  cd $OMARCHY_PATH"
+    echo "  git add -A && git commit"
+    echo "  omarchy-update"
+    echo ""
+    echo "To abort the merge: git -C $OMARCHY_PATH merge --abort"
+    hyprctl reload &>/dev/null || true
+    exit 1
+  fi
   git -C $OMARCHY_PATH --no-pager diff --check || git -C $OMARCHY_PATH reset --merge
 fi
 

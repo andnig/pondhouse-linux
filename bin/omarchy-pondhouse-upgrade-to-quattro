@@ -389,24 +389,31 @@ preflight_pondhouse_release() {
 }
 
 verify_active_pacman_key() {
-  local exported
+  local exported status=0
   exported=$(mktemp "$RUN_DIR/downloads/active-pondhouse-key.XXXXXX")
-  if ! sudo pacman-key --export "$SIGNING_FINGERPRINT" >"$exported"; then
-    rm -f "$exported"
-    return 1
+  sudo pacman-key --export "$SIGNING_FINGERPRINT" >"$exported" || status=$?
+  if (( status == 0 )); then
+    verify_signing_key "$exported" || status=$?
   fi
-  verify_signing_key "$exported"
   rm -f "$exported"
+  return "$status"
 }
 
 run_pacman_with_required_local_signatures() {
   local strict_config status
   strict_config=$(mktemp "$RUN_DIR/downloads/pacman-required.XXXXXX")
-  cp "$PACMAN_CONFIG" "$strict_config"
+  if ! cp "$PACMAN_CONFIG" "$strict_config"; then
+    rm -f "$strict_config"
+    return 1
+  fi
   if grep -q '^LocalFileSigLevel' "$strict_config"; then
-    sed -i 's/^LocalFileSigLevel.*/LocalFileSigLevel = Required/' "$strict_config"
-  else
-    printf '\nLocalFileSigLevel = Required\n' >>"$strict_config"
+    if ! sed -i 's/^LocalFileSigLevel.*/LocalFileSigLevel = Required/' "$strict_config"; then
+      rm -f "$strict_config"
+      return 1
+    fi
+  elif ! printf '\nLocalFileSigLevel = Required\n' >>"$strict_config"; then
+    rm -f "$strict_config"
+    return 1
   fi
 
   status=0

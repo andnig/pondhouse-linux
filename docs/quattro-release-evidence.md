@@ -39,8 +39,8 @@ Run it with:
 test/omarchy-pondhouse-pacman-integration-test.sh
 ```
 
-The gate uses a disposable `archlinux:base-devel` container and invokes the
-production migration command as an employee. It starts with no Pondhouse key,
+The gate uses a digest-pinned disposable `archlinux:base-devel` container and
+invokes the production migration command as an employee. It starts with no Pondhouse key,
 builds real signed Arch package archives, invokes real `/usr/bin/pacman-key` for
 initialization, import, local trust, population, and export, and invokes real
 `/usr/bin/pacman` for required-signature acceptance and package installation.

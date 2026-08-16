@@ -185,7 +185,8 @@ case "${1:-}" in
         printf '%s\n' "$count" >"$MOCK_GPGDIR/export-count"
         if (( ${MOCK_EXPORT_MISMATCH:-0} == 1 )) || \
           (( ${MOCK_POST_POP_EXPORT_MISMATCH:-0} == 1 && count >= 2 )); then
-          exit 1
+          gpg --batch --homedir "$MOCK_GPGDIR" --export
+          exit 0
         fi
         gpg --batch --homedir "$MOCK_GPGDIR" --export "$2"
         ;;
@@ -241,16 +242,23 @@ run_migration() {
 }
 
 expect_preconversion_failure() {
-  local fixture=$1 label=$2
+  local fixture=$1 label=$2 output="$1/failure-output"
   shift 2
   if (( $# )); then
-    if (export "$@"; run_migration "$fixture" --yes >/dev/null 2>&1); then
+    if (export "$@"; run_migration "$fixture" --yes >"$output" 2>&1); then
       fail "$label"
     fi
-  elif run_migration "$fixture" --yes >/dev/null 2>&1; then
+  elif run_migration "$fixture" --yes >"$output" 2>&1; then
     fail "$label"
   fi
   [[ ! -e $fixture/home/upgrader-runs ]] || fail "$label invokes upstream"
+  grep -Fq 'Migration is incomplete. Do not reboot. Resume with:' "$output" || \
+    fail "$label omits failure and resume guidance"
+  if [[ -d $fixture/state/latest/downloads ]]; then
+    ! find "$fixture/state/latest/downloads" -maxdepth 1 \
+      \( -name 'active-pondhouse-key.*' -o -name 'pacman-required.*' \) -print -quit | grep -q . || \
+      fail "$label leaves temporary trust material"
+  fi
   pass "$label leaves upstream invocation count at zero"
 }
 

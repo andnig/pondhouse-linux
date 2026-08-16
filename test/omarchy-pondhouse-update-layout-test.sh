@@ -102,6 +102,34 @@ git -C "$employee" merge-base --is-ancestor "$(git --git-dir="$shared" rev-parse
 assert_migration_command "$employee"
 pass "personal fork keeps employee commits and pushes merged state only to origin"
 
+direct_conflict="$TMPDIR/direct-conflict"
+git clone -q "$shared" "$direct_conflict"
+git -C "$direct_conflict" config user.name Employee
+git -C "$direct_conflict" config user.email employee@example.com
+shared_direct_edit="$TMPDIR/shared-direct-edit"
+git clone -q "$shared" "$shared_direct_edit"
+git -C "$shared_direct_edit" config user.name Shared
+git -C "$shared_direct_edit" config user.email shared@example.com
+printf 'employee version\n' >"$direct_conflict/direct-conflict.txt"
+git -C "$direct_conflict" add direct-conflict.txt
+git -C "$direct_conflict" commit -qm 'direct employee conflict'
+direct_conflict_commit=$(git -C "$direct_conflict" rev-parse HEAD)
+printf 'shared version\n' >"$shared_direct_edit/direct-conflict.txt"
+git -C "$shared_direct_edit" add direct-conflict.txt
+git -C "$shared_direct_edit" commit -qm 'direct shared conflict'
+git -C "$shared_direct_edit" push -q origin master
+make_update_shims "$TMPDIR/direct-conflict-bin"
+if OMARCHY_PATH="$direct_conflict" OMARCHY_UPDATE_LOGGED=1 \
+  PATH="$TMPDIR/direct-conflict-bin:$direct_conflict/bin:$PATH" \
+  "$direct_conflict/bin/omarchy-update" -y >"$TMPDIR/direct-conflict-output" 2>&1; then
+  fail "conflicting direct update succeeds"
+fi
+grep -Fq 'Your local work was not reset or discarded' "$TMPDIR/direct-conflict-output" || \
+  fail "direct conflict guidance is shown"
+git -C "$direct_conflict" cat-file -e "$direct_conflict_commit^{commit}" || \
+  fail "direct employee commit survives conflict"
+pass "direct checkout conflict gives guidance without resetting employee work"
+
 conflict_shared="$TMPDIR/conflict-shared.git"
 conflict_fork="$TMPDIR/conflict-fork.git"
 git clone -q --bare "$shared" "$conflict_shared"

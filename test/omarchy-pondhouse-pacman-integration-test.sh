@@ -3,14 +3,14 @@
 set -euo pipefail
 
 ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
-IMAGE=${PONDHOUSE_ARCH_TEST_IMAGE:-archlinux:base-devel}
+IMAGE=${PONDHOUSE_ARCH_TEST_IMAGE:-archlinux@sha256:ee205c220399524a683cf495d411691b921baed8ab47cdc6d732efa782fae484}
 
 if [[ ${1:-} != "--inside" ]]; then
   exec docker run --rm --privileged -v "$ROOT:/repo:ro" "$IMAGE" \
     /bin/bash /repo/test/omarchy-pondhouse-pacman-integration-test.sh --inside
 fi
 
-pacman -Sy --noconfirm --needed curl git inetutils sudo >/dev/null
+pacman -Syu --noconfirm --needed curl git inetutils sudo >/dev/null
 useradd -m -s /bin/bash tester
 printf 'tester ALL=(ALL) NOPASSWD: ALL\n' >/etc/sudoers.d/pondhouse-test
 chmod 440 /etc/sudoers.d/pondhouse-test
