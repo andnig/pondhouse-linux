@@ -11,10 +11,11 @@ umask 077
 
 UPGRADER_URL=${PONDHOUSE_UPGRADER_URL:-https://raw.githubusercontent.com/basecamp/omarchy/f0020448ca87329199de7cb12f2015ebc4a3e5e7/bin/omarchy-upgrade-to-quattro}
 UPGRADER_SHA256=${PONDHOUSE_UPGRADER_SHA256:-fd5f311313c87bf25429220a3c4e65da755ee0c2e78648a20e30e86133495fd4}
-PACKAGE_VERSION=${PONDHOUSE_PACKAGE_VERSION:-2026.08.15-14}
+PACKAGE_VERSION=${PONDHOUSE_PACKAGE_VERSION:-2026.08.15-15}
 KEYRING_VERSION=${PONDHOUSE_KEYRING_VERSION:-2026.08.15-1}
-KEYRING_SHA256=${PONDHOUSE_KEYRING_SHA256:-3a9e97447fb41d3be7df7825e98197227a7d39b332af093b7e66115488c4cdc4}
-PACKAGE_SHA256=${PONDHOUSE_PACKAGE_SHA256:-00a85f60451155c0e0ccc19c3e5447143eaeb127b4795e59b124336fad6eea87}
+KEYRING_SHA256=${PONDHOUSE_KEYRING_SHA256:-3f08cbadc45c8a229780ad5641a7f0afee6f1e16835422cca81ab856948580c0}
+PACKAGE_SHA256=${PONDHOUSE_PACKAGE_SHA256:-8cf5d0a6f0e34796953ee8c46a936a729ad9e388a88af997928c0d51d2d5da1d}
+REPOSITORY_SHA256=${PONDHOUSE_REPOSITORY_SHA256:-0bfaef463b2700f28252519e65c5c737f97efffc1266fc67acc6098298651f11}
 SIGNING_FINGERPRINT=${PONDHOUSE_SIGNING_FINGERPRINT:-2E4DE2E86D2D5D4EF994B0A849EE396C83FEEC69}
 SNAPSHOT_URL=${PONDHOUSE_SNAPSHOT_URL:-https://packages.pondhouse-data.com/snapshots/$PACKAGE_VERSION/x86_64}
 STABLE_URL=${PONDHOUSE_STABLE_URL:-https://packages.pondhouse-data.com/stable/\$arch}
@@ -22,6 +23,7 @@ LEGACY_ROOT=${PONDHOUSE_LEGACY_ROOT:-$HOME/.local/share/omarchy}
 STATE_BASE=${PONDHOUSE_MIGRATION_STATE:-${XDG_STATE_HOME:-$HOME/.local/state}/pondhouse/quattro-migrations}
 BACKUP_BASE=${PONDHOUSE_MIGRATION_BACKUPS:-${XDG_DATA_HOME:-$HOME/.local/share}/pondhouse/backups/quattro-migrations}
 QUATTRO_ROOT=${PONDHOUSE_QUATTRO_ROOT:-/usr/share/omarchy}
+PACMAN_CONFIG=${PONDHOUSE_PACMAN_CONFIG:-/etc/pacman.conf}
 DRY_RUN=0
 YES=0
 RUN_DIR=""
@@ -341,24 +343,97 @@ download_verified() {
   (( signature )) && curl -fsSL --retry 3 "$url.sig" -o "$destination.sig"
 }
 
+key_primary_fingerprint() {
+  gpg --batch --show-keys --with-colons "$1" 2>/dev/null |
+    awk -F: '$1 == "pub" { primary = 1; next } primary && $1 == "fpr" { print $10; exit }'
+}
+
+verify_signing_key() {
+  local key=$1 fingerprint
+  fingerprint=$(key_primary_fingerprint "$key")
+  [[ $fingerprint == "$SIGNING_FINGERPRINT" ]] || {
+    echo "Pondhouse signing fingerprint mismatch: ${fingerprint:-missing}" >&2
+    return 1
+  }
+  if gpg --batch --show-keys --with-colons "$key" 2>/dev/null | grep -Eq '^(sec|ssb):'; then
+    echo "Pondhouse trust payload unexpectedly contains private key material" >&2
+    return 1
+  fi
+}
+
+preflight_pondhouse_release() {
+  local keyring="$RUN_DIR/downloads/pondhouse-keyring-$KEYRING_VERSION-any.pkg.tar.zst"
+  local package="$RUN_DIR/downloads/pondhouse-omarchy-$PACKAGE_VERSION-x86_64.pkg.tar.zst"
+  local repository="$RUN_DIR/downloads/pondhouse.db.tar.gz"
+  local trust_dir="$RUN_DIR/downloads/pondhouse-trust"
+  local public_key="$trust_dir/usr/share/pacman/keyrings/pondhouse.gpg"
+
+  phase_done release-preflight && return 0
+
+  download_verified "$SNAPSHOT_URL/${keyring##*/}" "$keyring" "$KEYRING_SHA256"
+  download_verified "$SNAPSHOT_URL/${package##*/}" "$package" "$PACKAGE_SHA256"
+  download_verified "$SNAPSHOT_URL/${repository##*/}" "$repository" "$REPOSITORY_SHA256"
+  rm -rf "$trust_dir"
+  mkdir -p "$(dirname "$public_key")"
+  bsdtar -xOf "$keyring" usr/share/pacman/keyrings/pondhouse.gpg >"$public_key"
+  verify_signing_key "$public_key"
+  gpgv --keyring "$public_key" "$keyring.sig" "$keyring" >/dev/null
+  gpgv --keyring "$public_key" "$package.sig" "$package" >/dev/null
+  gpgv --keyring "$public_key" "$repository.sig" "$repository" >/dev/null
+  mark_phase release-preflight
+}
+
+verify_active_pacman_key() {
+  local exported
+  exported=$(mktemp)
+  if ! sudo pacman-key --export "$SIGNING_FINGERPRINT" >"$exported"; then
+    rm -f "$exported"
+    return 1
+  fi
+  verify_signing_key "$exported"
+  rm -f "$exported"
+}
+
 install_pondhouse_release() {
   local keyring="$RUN_DIR/downloads/pondhouse-keyring-$KEYRING_VERSION-any.pkg.tar.zst"
   local package="$RUN_DIR/downloads/pondhouse-omarchy-$PACKAGE_VERSION-x86_64.pkg.tar.zst"
-  local config
+  local config strict_config
+  local public_key="$RUN_DIR/downloads/pondhouse-trust/usr/share/pacman/keyrings/pondhouse.gpg"
+
+  preflight_pondhouse_release
 
   if ! phase_done keyring-install; then
-    download_verified "$SNAPSHOT_URL/${keyring##*/}" "$keyring" "$KEYRING_SHA256"
-    sudo pacman -U --noconfirm "$keyring"
+    sudo pacman-key --add "$public_key"
+    sudo pacman-key --lsign-key "$SIGNING_FINGERPRINT"
+    verify_active_pacman_key
+
+    strict_config=$(mktemp)
+    cp "$PACMAN_CONFIG" "$strict_config"
+    if grep -q '^LocalFileSigLevel' "$strict_config"; then
+      sed -i 's/^LocalFileSigLevel.*/LocalFileSigLevel = Required/' "$strict_config"
+    else
+      printf '\nLocalFileSigLevel = Required\n' >>"$strict_config"
+    fi
+    sudo pacman --config "$strict_config" -U --noconfirm "$keyring"
+    rm -f "$strict_config"
     [[ $(pacman -Q pondhouse-keyring) == "pondhouse-keyring $KEYRING_VERSION" ]]
-    sudo pacman-key --list-keys "$SIGNING_FINGERPRINT" >/dev/null
+    sudo pacman-key --populate pondhouse
+    verify_active_pacman_key
     mark_phase keyring-install
   fi
   [[ $(pacman -Q pondhouse-keyring) == "pondhouse-keyring $KEYRING_VERSION" ]]
-  sudo pacman-key --list-keys "$SIGNING_FINGERPRINT" >/dev/null
+  verify_active_pacman_key
 
   if ! phase_done company-package-install; then
-    download_verified "$SNAPSHOT_URL/${package##*/}" "$package" "$PACKAGE_SHA256"
-    sudo pacman -U --noconfirm --needed "$package"
+    strict_config=$(mktemp)
+    cp "$PACMAN_CONFIG" "$strict_config"
+    if grep -q '^LocalFileSigLevel' "$strict_config"; then
+      sed -i 's/^LocalFileSigLevel.*/LocalFileSigLevel = Required/' "$strict_config"
+    else
+      printf '\nLocalFileSigLevel = Required\n' >>"$strict_config"
+    fi
+    sudo pacman --config "$strict_config" -U --noconfirm --needed "$package"
+    rm -f "$strict_config"
     [[ $(pacman -Q pondhouse-omarchy) == "pondhouse-omarchy $PACKAGE_VERSION" ]]
     mark_phase company-package-install
   fi
@@ -480,6 +555,7 @@ ln -sfn "$RUN_DIR" "$STATE_BASE/latest"
 printf -v resume_command '%q --resume %q --yes' "$RUN_DIR/pondhouse-upgrade-to-quattro" "$RUN_DIR"
 trap 'status=$?; if (( status != 0 )); then printf "\nMigration is incomplete. Do not reboot. Resume with:\n  %s\n" "$resume_command" >&2; fi; exit "$status"' EXIT
 
+phase_done release-preflight || preflight_pondhouse_release
 phase_done preservation || preserve_and_materialize
 phase_done upstream-upgrade || run_upstream_upgrade
 phase_done protected-agent-state || restore_protected_agent_state
