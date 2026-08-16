@@ -12,7 +12,7 @@ snapshot at
 | `pondhouse.db.tar.gz` | `0bfaef463b2700f28252519e65c5c737f97efffc1266fc67acc6098298651f11` |
 
 The migration release-safety correction is commit
-`62d4ad9c85cd41d32e83bccbb0276d754a91be1b`. It retains the existing artifact
+`62d4ad9c2ec31e35be4eb4edc31dd90e2a61ffc9`. It retains the existing artifact
 pins and verifies the full primary fingerprint
 `2E4DE2E86D2D5D4EF994B0A849EE396C83FEEC69`. No package or ISO was rebuilt.
 The published ISO remains `pondhouse-linux-2026.08.16-1-x86_64.iso` with
