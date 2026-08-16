@@ -42,6 +42,12 @@ make_fixture() {
   cat >"$fixture/upgrader" <<'EOF'
 #!/bin/bash
 echo run >>"$HOME/upgrader-runs"
+mkdir -p "$HOME/.codex" "$HOME/.pi"
+echo generated >"$HOME/.codex/generated"
+echo generated >"$HOME/.pi/generated"
+rm -rf "$HOME/.claude"
+mkdir "$HOME/.claude"
+echo changed >"$HOME/.claude/changed"
 if (( ${MOCK_UPGRADER_FAIL:-0} == 1 )); then
   exit 1
 fi
@@ -152,6 +158,7 @@ backup_dir=$(<"$run_dir/inventory/backup-path")
 [[ ! -L $fixture/home/.config/nested ]] || fail "migration materializes selected config link"; pass "migration materializes selected config link"
 [[ ! -L $fixture/home/.agents/nested-legacy ]] || fail "migration materializes nested legacy link"; pass "migration materializes nested legacy link"
 [[ -L $fixture/home/.claude/untouched ]] || fail "migration excludes Claude"; pass "migration excludes Claude"
+[[ ! -e $fixture/home/.claude/changed && ! -e $fixture/home/.codex && ! -e $fixture/home/.pi ]] || fail "migration restores excluded agent state"; pass "migration restores excluded agent state"
 (( $(wc -l <"$fixture/home/package-actions") == 2 )) || fail "migration installs exact package artifacts"; pass "migration installs exact package artifacts"
 (( $(wc -l <"$fixture/home/reconciliation-actions") == 3 )) || fail "migration runs package-owned reconcilers"; pass "migration runs package-owned reconcilers"
 [[ -f $run_dir/phases/complete ]] || fail "migration records completion"; pass "migration records completion"
@@ -185,6 +192,7 @@ if MOCK_UPGRADER_FAIL=1 run_migration "$fixture" --yes >/dev/null 2>&1; then
 fi
 pass "interrupted upstream upgrade fails"
 run_dir=$(readlink -f "$fixture/state/latest")
+[[ -L $fixture/home/.claude/untouched && ! -e $fixture/home/.codex && ! -e $fixture/home/.pi ]] || fail "failed upgrader restores excluded agent state"; pass "failed upgrader restores excluded agent state"
 [[ ! -e $run_dir/phases/complete ]] || fail "partial migration is not complete"; pass "partial migration is not complete"
 run_migration "$fixture" --resume "$run_dir" --yes >/dev/null
 (( $(find "$fixture/state" -mindepth 1 -maxdepth 1 -type d | wc -l) == 1 )) || fail "resume reuses the original state"; pass "resume reuses the original state"

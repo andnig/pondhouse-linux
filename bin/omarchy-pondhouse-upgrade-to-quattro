@@ -241,6 +241,15 @@ preserve_and_materialize() {
     mkdir "$partial_backup"
     cp -a --reflink=auto "$LEGACY_ROOT" "$partial_backup/legacy-checkout"
     cp -a "$RUN_DIR/inventory" "$partial_backup/inventory"
+    mkdir "$partial_backup/protected-home"
+    for path in .claude .codex .pi; do
+      if [[ -e $HOME/$path || -L $HOME/$path ]]; then
+        printf '%s\tpresent\n' "$path" >>"$partial_backup/protected-home.tsv"
+        cp -a "$HOME/$path" "$partial_backup/protected-home/$path"
+      else
+        printf '%s\tabsent\n' "$path" >>"$partial_backup/protected-home.tsv"
+      fi
+    done
     mv "$partial_backup" "$backup_dir"
   fi
   while IFS=$'\t' read -r path _; do
@@ -276,10 +285,38 @@ exec /usr/bin/gum "$@"
 EOF
   chmod 700 "$no_reboot_bin/gum"
   touch "$RUN_DIR/phases/upstream-attempted"
+  rm -f "$RUN_DIR/phases/protected-agent-state"
   echo "Running the checksum-pinned Basecamp Quattro upgrader"
-  PATH="$no_reboot_bin:$PATH" PONDHOUSE_QUATTRO_ROOT="$QUATTRO_ROOT" \
-    "$upgrader" --yes --channel stable
+  if ! PATH="$no_reboot_bin:$PATH" PONDHOUSE_QUATTRO_ROOT="$QUATTRO_ROOT" \
+    "$upgrader" --yes --channel stable; then
+    restore_protected_agent_state
+    return 1
+  fi
   mark_phase upstream-upgrade
+}
+
+restore_protected_agent_state() {
+  local backup_dir displaced path status temporary
+  backup_dir=$(<"$RUN_DIR/inventory/backup-path")
+
+  while IFS=$'\t' read -r path status; do
+    if [[ $status == "absent" ]]; then
+      rm -rf -- "$HOME/$path" "$HOME/$path.pondhouse-upgrader-state" \
+        "$HOME/$path.pondhouse-restore"
+      continue
+    fi
+
+    temporary="$HOME/$path.pondhouse-restore"
+    displaced="$HOME/$path.pondhouse-upgrader-state"
+    rm -rf -- "$temporary" "$displaced"
+    cp -a "$backup_dir/protected-home/$path" "$temporary"
+    if [[ -e $HOME/$path || -L $HOME/$path ]]; then
+      mv -T -- "$HOME/$path" "$displaced"
+    fi
+    mv -T -- "$temporary" "$HOME/$path"
+    rm -rf -- "$displaced"
+  done <"$backup_dir/protected-home.tsv"
+  mark_phase protected-agent-state
 }
 
 download_verified() {
@@ -430,6 +467,7 @@ trap 'status=$?; if (( status != 0 )); then printf "\nMigration is incomplete. D
 
 phase_done preservation || preserve_and_materialize
 phase_done upstream-upgrade || run_upstream_upgrade
+phase_done protected-agent-state || restore_protected_agent_state
 phase_done package-install || install_pondhouse_release
 phase_done reconciliation || reconcile_pondhouse
 phase_done defaults-restored || restore_defaults
