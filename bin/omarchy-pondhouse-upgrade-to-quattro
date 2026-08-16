@@ -25,6 +25,7 @@ QUATTRO_ROOT=${PONDHOUSE_QUATTRO_ROOT:-/usr/share/omarchy}
 DRY_RUN=0
 YES=0
 RUN_DIR=""
+PROTECTED_AGENT_PATHS=(.claude .codex .pi)
 
 usage() {
   cat <<'EOF'
@@ -72,11 +73,11 @@ mark_phase() {
 }
 
 is_excluded() {
-  local path=$1
-  [[ $path == "$HOME/.claude" || $path == "$HOME/.claude"/* ||
-    $path == "$HOME/.codex" || $path == "$HOME/.codex"/* ||
-    $path == "$HOME/.pi" || $path == "$HOME/.pi"/* ||
-    $path == */backup || $path == */backup/* ||
+  local path=$1 protected
+  for protected in "${PROTECTED_AGENT_PATHS[@]}"; do
+    [[ $path == "$HOME/$protected" || $path == "$HOME/$protected"/* ]] && return 0
+  done
+  [[ $path == */backup || $path == */backup/* ||
     $path == */backups || $path == */backups/* ||
     $path == */*_bkp || $path == */*_bkp/* ]]
 }
@@ -186,6 +187,24 @@ materialization_size() {
   printf '%s\n' "$total"
 }
 
+preservation_size() {
+  local backup_dir path size total
+  backup_dir=$(<"$RUN_DIR/inventory/backup-path")
+  total=$(materialization_size)
+  if [[ ! -d $backup_dir ]]; then
+    for path in "$LEGACY_ROOT" "$RUN_DIR/inventory"; do
+      size=$(du -sb -- "$path" 2>/dev/null | cut -f1 || printf '0')
+      [[ $size =~ ^[0-9]+$ ]] && total=$((total + size))
+    done
+    for path in "${PROTECTED_AGENT_PATHS[@]}"; do
+      [[ -e $HOME/$path || -L $HOME/$path ]] || continue
+      size=$(du -sbH -- "$HOME/$path" 2>/dev/null | cut -f1 || printf '0')
+      [[ $size =~ ^[0-9]+$ ]] && total=$((total + size))
+    done
+  fi
+  printf '%s\n' "$total"
+}
+
 materialize_link() {
   local path=$1 original source temporary
   original="$path.pondhouse-legacy-link"
@@ -220,13 +239,9 @@ materialize_link() {
 }
 
 preserve_and_materialize() {
-  local available backup_bytes backup_dir partial_backup required reserve path
+  local available backup_dir partial_backup required reserve path
   backup_dir=$(<"$RUN_DIR/inventory/backup-path")
-  required=$(materialization_size)
-  if [[ ! -d $backup_dir ]]; then
-    backup_bytes=$(du -sb -- "$LEGACY_ROOT" | cut -f1)
-    required=$((required + backup_bytes))
-  fi
+  required=$(preservation_size)
   available=$(df --output=avail -B1 "$HOME" | tail -n1 | tr -d ' ')
   reserve=$((2 * 1024 * 1024 * 1024))
   if (( available < required + reserve )); then
@@ -242,7 +257,7 @@ preserve_and_materialize() {
     cp -a --reflink=auto "$LEGACY_ROOT" "$partial_backup/legacy-checkout"
     cp -a "$RUN_DIR/inventory" "$partial_backup/inventory"
     mkdir "$partial_backup/protected-home"
-    for path in .claude .codex .pi; do
+    for path in "${PROTECTED_AGENT_PATHS[@]}"; do
       if [[ -e $HOME/$path || -L $HOME/$path ]]; then
         printf '%s\tpresent\n' "$path" >>"$partial_backup/protected-home.tsv"
         cp -a "$HOME/$path" "$partial_backup/protected-home/$path"
@@ -433,13 +448,13 @@ else
 fi
 
 link_count=$(wc -l <"$RUN_DIR/inventory/materialized-links.tsv")
-required_bytes=$(materialization_size)
+required_bytes=$(preservation_size)
 echo "Pondhouse Omarchy 3 to package-backed Quattro migration"
 echo "Legacy checkout: $LEGACY_ROOT"
 echo "Private migration record: $RUN_DIR"
 echo "Checkout-backed links: $link_count"
 cut -f1 "$RUN_DIR/inventory/materialized-links.tsv" | sed 's/^/  /'
-echo "Estimated materialization space: $(numfmt --to=iec-i --suffix=B "$required_bytes")"
+echo "Estimated preservation space: $(numfmt --to=iec-i --suffix=B "$required_bytes")"
 echo "Pinned Pondhouse package: $PACKAGE_VERSION"
 
 if (( DRY_RUN )); then

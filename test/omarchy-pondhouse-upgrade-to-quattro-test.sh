@@ -144,13 +144,16 @@ grep -Fq 'PACKAGE_SHA256=${PONDHOUSE_PACKAGE_SHA256:-00a85f60451155c0e0ccc19c3e5
 grep -Fq 'KEYRING_SHA256=${PONDHOUSE_KEYRING_SHA256:-3a9e97447fb41d3be7df7825e98197227a7d39b332af093b7e66115488c4cdc4}' "$COMMAND" || fail "production keyring checksum is pinned"; pass "production keyring checksum is pinned"
 
 fixture=$(make_fixture dry-run)
-run_migration "$fixture" --dry-run --yes >/dev/null
+truncate -s 2M "$fixture/home/.claude/agent-state"
+dry_run_output=$(run_migration "$fixture" --dry-run --yes)
 run_dir=$(find "$fixture/state" -mindepth 1 -maxdepth 1 -type d -name '*-dry-run' -print -quit)
 [[ -s $run_dir/inventory/legacy-status.txt ]] || fail "dry run records git state"; pass "dry run records git state"
 grep -Fq 'config/opencode/secret.json' "$run_dir/inventory/legacy-ignored.tsv" || fail "dry run inventories ignored paths"; pass "dry run inventories ignored paths"
 grep -Fq "$fixture/home/.agents/nested-legacy" "$run_dir/inventory/materialized-links.tsv" || fail "dry run records nested checkout links"; pass "dry run records nested checkout links"
 [[ -L $fixture/home/.config/nested ]] || fail "dry run leaves checkout link intact"; pass "dry run leaves checkout link intact"
 [[ ! -e $fixture/backups ]] || fail "dry run makes no backup"; pass "dry run makes no backup"
+estimated_size=$(sed -n 's/^Estimated preservation space: \([0-9.]*\)MiB$/\1/p' <<<"$dry_run_output")
+awk "BEGIN { exit !($estimated_size >= 2) }" || fail "dry run includes protected agent state in required space"; pass "dry run includes protected agent state in required space"
 
 fixture=$(make_fixture complete)
 run_migration "$fixture" --yes >/dev/null
