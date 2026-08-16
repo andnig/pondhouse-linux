@@ -1,15 +1,15 @@
 # Quattro Rollout Evidence
 
-Release `pondhouse-omarchy 2026.08.15-15` was checked against the immutable
+Release `pondhouse-omarchy 2026.08.15-16` was checked against the immutable
 snapshot at
-`https://packages.pondhouse-data.com/snapshots/2026.08.15-15/x86_64` on
+`https://packages.pondhouse-data.com/snapshots/2026.08.15-16/x86_64` on
 2026-08-16.
 
 | Artifact | SHA-256 |
 | --- | --- |
-| `pondhouse-keyring-2026.08.15-1-any.pkg.tar.zst` | `3f08cbadc45c8a229780ad5641a7f0afee6f1e16835422cca81ab856948580c0` |
-| `pondhouse-omarchy-2026.08.15-15-x86_64.pkg.tar.zst` | `8cf5d0a6f0e34796953ee8c46a936a729ad9e388a88af997928c0d51d2d5da1d` |
-| `pondhouse.db.tar.gz` | `0bfaef463b2700f28252519e65c5c737f97efffc1266fc67acc6098298651f11` |
+| `pondhouse-keyring-2026.08.15-1-any.pkg.tar.zst` | `4d0aaad00d9d15a89f4980c3ff71a4c7897d7b2694797af9c1a59b32fcc9141f` |
+| `pondhouse-omarchy-2026.08.15-16-x86_64.pkg.tar.zst` | `d80d18b6e6c0bfcc0f14123e948f4f3dab36a46f7f9677c53716ba054978772e` |
+| `pondhouse.db.tar.gz` | `3b4b90cb8a280c0aa789c4fa4e7465abc947d2b760aaa4e7e80cef71027ce426` |
 
 The migration release-safety correction is commit
 `62d4ad9c2ec31e35be4eb4edc31dd90e2a61ffc9`. It retains the existing artifact
