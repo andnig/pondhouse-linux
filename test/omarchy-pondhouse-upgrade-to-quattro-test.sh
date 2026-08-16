@@ -139,6 +139,10 @@ run_migration() {
     "$COMMAND" "$@"
 }
 
+grep -Fq 'PACKAGE_VERSION=${PONDHOUSE_PACKAGE_VERSION:-2026.08.15-14}' "$COMMAND" || fail "production package release is pinned"; pass "production package release is pinned"
+grep -Fq 'PACKAGE_SHA256=${PONDHOUSE_PACKAGE_SHA256:-00a85f60451155c0e0ccc19c3e5447143eaeb127b4795e59b124336fad6eea87}' "$COMMAND" || fail "production package checksum is pinned"; pass "production package checksum is pinned"
+grep -Fq 'KEYRING_SHA256=${PONDHOUSE_KEYRING_SHA256:-3a9e97447fb41d3be7df7825e98197227a7d39b332af093b7e66115488c4cdc4}' "$COMMAND" || fail "production keyring checksum is pinned"; pass "production keyring checksum is pinned"
+
 fixture=$(make_fixture dry-run)
 run_migration "$fixture" --dry-run --yes >/dev/null
 run_dir=$(find "$fixture/state" -mindepth 1 -maxdepth 1 -type d -name '*-dry-run' -print -quit)
