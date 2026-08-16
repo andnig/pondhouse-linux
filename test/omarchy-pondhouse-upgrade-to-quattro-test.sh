@@ -23,7 +23,8 @@ make_fixture() {
     "$fixture/home/.local/share/omarchy/config/opencode" \
     "$fixture/home/.local/share/omarchy/config/nested" \
     "$fixture/home/.config" "$fixture/home/.claude" "$fixture/bin" \
-    "$fixture/packages" "$fixture/quattro-root" "$fixture/signing" "$fixture/pacman-gnupg"
+    "$fixture/packages" "$fixture/quattro-root" "$fixture/signing" "$fixture/pacman-gnupg" \
+    "$fixture/pacman-keyrings"
   chmod 700 "$fixture/signing" "$fixture/pacman-gnupg"
 
   printf 'legacy\n' >"$fixture/home/.local/share/omarchy/config/nested/value"
@@ -43,6 +44,7 @@ make_fixture() {
   cat >"$fixture/upgrader" <<'EOF'
 #!/bin/bash
 echo run >>"$HOME/upgrader-runs"
+echo upstream >>"$HOME/phase-actions"
 mkdir -p "$HOME/.codex" "$HOME/.pi"
 echo generated >"$HOME/.codex/generated"
 echo generated >"$HOME/.pi/generated"
@@ -84,17 +86,27 @@ EOF
   cat >"$fixture/bin/pacman" <<'EOF'
 #!/bin/bash
 set -euo pipefail
+if (( ${MOCK_PACMAN_SIGNATURE_REJECT:-0} == 1 )) && [[ " $* " == *" --downloadonly "* ]]; then
+  exit 1
+fi
 case "${1:-}" in
   -Q)
     case "${2:-}" in
       pondhouse-omarchy) [[ -f $MOCK_GPGDIR/installed-package ]] && echo "pondhouse-omarchy 2" ;;
-      pondhouse-keyring) [[ -f $MOCK_GPGDIR/installed-keyring ]] && echo "pondhouse-keyring 1" ;;
+      pondhouse-keyring)
+        if [[ -f $MOCK_GPGDIR/installed-keyring ]]; then
+          (( ${MOCK_WRONG_KEYRING_VERSION:-0} == 0 )) && echo "pondhouse-keyring 1" || echo "pondhouse-keyring 999"
+        fi
+        ;;
       *) echo "git 1" ;;
     esac
     ;;
   -Qqe) echo git ;;
   -Qqm) echo foreign-package ;;
-  -Qkk) echo "pondhouse-omarchy: 1 total file, 0 altered files" ;;
+  -Qkk)
+    (( ${MOCK_KEYRING_FILES_WRONG:-0} == 0 ))
+    echo "${2:-package}: 3 total files, 0 altered files"
+    ;;
   *)
     if [[ " $* " == *" -U "* ]]; then
       package=${@: -1}
@@ -107,14 +119,24 @@ case "${1:-}" in
       done
       [[ -n $config ]] && grep -Fqx 'LocalFileSigLevel = Required' "$config"
       gpg --batch --homedir "$MOCK_GPGDIR" --verify "$package.sig" "$package" >/dev/null 2>&1
+      printf 'pacman %s\n' "$*" >>"$HOME/release-actions"
+      if [[ " $* " == *" --downloadonly "* ]]; then
+        echo signature-accepted >>"$HOME/phase-actions"
+        exit 0
+      fi
       if [[ $package == *pondhouse-keyring* ]]; then
+        (( ${MOCK_KEYRING_INSTALL_FAIL:-0} == 0 ))
         touch "$MOCK_GPGDIR/installed-keyring"
+        cp "$MOCK_PUBLIC_KEY" "$MOCK_KEYRING_DIR/pondhouse.gpg"
+        touch "$MOCK_KEYRING_DIR/pondhouse-trusted" "$MOCK_KEYRING_DIR/pondhouse-revoked"
+        echo keyring-installed >>"$HOME/phase-actions"
       else
         [[ -f $MOCK_GPGDIR/populated ]]
+        (( ${MOCK_COMPANY_INSTALL_FAIL:-0} == 0 ))
         touch "$MOCK_GPGDIR/installed-package"
+        echo company-installed >>"$HOME/phase-actions"
       fi
       printf 'pacman %s\n' "$*" >>"$HOME/package-actions"
-      printf 'pacman %s\n' "$*" >>"$HOME/release-actions"
     fi
     ;;
 esac
@@ -126,6 +148,9 @@ destination=${@: -1}
 /usr/bin/cp "$@"
 if (( ${MOCK_CP_FAIL_ON_BACKUP:-0} == 1 )) && [[ $destination == */backups/*.partial/legacy-checkout ]]; then
   exit 1
+fi
+if [[ $destination == */backups/*.partial/legacy-checkout ]]; then
+  echo preservation >>"$HOME/phase-actions"
 fi
 EOF
 
@@ -148,13 +173,30 @@ case "${1:-}" in
     shift
     printf 'pacman-key %s\n' "$*" >>"$HOME/release-actions"
     case "${1:-}" in
-      --add) gpg --batch --homedir "$MOCK_GPGDIR" --import "$2" >/dev/null 2>&1 ;;
-      --lsign-key) gpg --batch --homedir "$MOCK_GPGDIR" --quick-lsign-key "$2" >/dev/null 2>&1 ;;
-      --export) gpg --batch --homedir "$MOCK_GPGDIR" --export "$2" ;;
+      --add)
+        (( ${MOCK_KEY_ADD_FAIL:-0} == 0 ))
+        gpg --batch --homedir "$MOCK_GPGDIR" --import "$2" >/dev/null 2>&1
+        ;;
+      --lsign-key)
+        (( ${MOCK_KEY_LSIGN_FAIL:-0} == 0 ))
+        gpg --batch --homedir "$MOCK_GPGDIR" --quick-lsign-key "$2" >/dev/null 2>&1
+        ;;
+      --export)
+        count=0
+        [[ ! -f $MOCK_GPGDIR/export-count ]] || count=$(<"$MOCK_GPGDIR/export-count")
+        (( count++ )) || true
+        printf '%s\n' "$count" >"$MOCK_GPGDIR/export-count"
+        if (( ${MOCK_EXPORT_MISMATCH:-0} == 1 )) || \
+          (( ${MOCK_POST_POP_EXPORT_MISMATCH:-0} == 1 && count >= 2 )); then
+          exit 1
+        fi
+        gpg --batch --homedir "$MOCK_GPGDIR" --export "$2"
+        ;;
       --populate)
         (( ${MOCK_POPULATE_FAIL:-0} == 0 ))
         [[ $2 == "pondhouse" && -f $MOCK_GPGDIR/installed-keyring ]]
         touch "$MOCK_GPGDIR/populated"
+        echo trust-populated >>"$HOME/phase-actions"
         ;;
       *) exit 1 ;;
     esac
@@ -170,6 +212,7 @@ EOF
     cat >"$fixture/bin/$command" <<EOF
 #!/bin/bash
 echo $command >>"\$HOME/reconciliation-actions"
+echo reconciliation >>"\$HOME/phase-actions"
 EOF
   done
   chmod 755 "$fixture/bin"/*
@@ -189,12 +232,29 @@ run_migration() {
     PONDHOUSE_UPGRADER_SHA256="$(sha256sum "$fixture/upgrader" | cut -d' ' -f1)" \
     PONDHOUSE_PACKAGE_VERSION=2 PONDHOUSE_KEYRING_VERSION=1 \
     PONDHOUSE_SIGNING_FINGERPRINT="${TEST_SIGNING_FINGERPRINT:-$(<"$fixture/fingerprint")}" \
-    PONDHOUSE_PACKAGE_SHA256="$(sha256sum "$fixture/packages/pondhouse-omarchy-2-x86_64.pkg.tar.zst" | cut -d' ' -f1)" \
+    PONDHOUSE_PACKAGE_SHA256="${TEST_PACKAGE_SHA256:-$(sha256sum "$fixture/packages/pondhouse-omarchy-2-x86_64.pkg.tar.zst" | cut -d' ' -f1)}" \
     PONDHOUSE_KEYRING_SHA256="${TEST_KEYRING_SHA256:-$(sha256sum "$fixture/packages/pondhouse-keyring-1-any.pkg.tar.zst" | cut -d' ' -f1)}" \
-    PONDHOUSE_REPOSITORY_SHA256="$(sha256sum "$fixture/packages/pondhouse.db.tar.gz" | cut -d' ' -f1)" \
+    PONDHOUSE_REPOSITORY_SHA256="${TEST_REPOSITORY_SHA256:-$(sha256sum "$fixture/packages/pondhouse.db.tar.gz" | cut -d' ' -f1)}" \
     PONDHOUSE_SNAPSHOT_URL="${TEST_SNAPSHOT_URL:-file://$fixture/packages}" \
-    PONDHOUSE_PACMAN_CONFIG="$fixture/pacman.conf" MOCK_GPGDIR="$fixture/pacman-gnupg" \
+    PONDHOUSE_PACMAN_CONFIG="$fixture/pacman.conf" \
+    PONDHOUSE_PACMAN_KEYRING_DIR="$fixture/pacman-keyrings" \
+    MOCK_GPGDIR="$fixture/pacman-gnupg" MOCK_KEYRING_DIR="$fixture/pacman-keyrings" \
+    MOCK_PUBLIC_KEY="$fixture/keyring-root/usr/share/pacman/keyrings/pondhouse.gpg" \
     "$COMMAND" "$@"
+}
+
+expect_preconversion_failure() {
+  local fixture=$1 label=$2
+  shift 2
+  if (( $# )); then
+    if (export "$@"; run_migration "$fixture" --yes >/dev/null 2>&1); then
+      fail "$label"
+    fi
+  elif run_migration "$fixture" --yes >/dev/null 2>&1; then
+    fail "$label"
+  fi
+  [[ ! -e $fixture/home/upgrader-runs ]] || fail "$label invokes upstream"
+  pass "$label leaves upstream invocation count at zero"
 }
 
 grep -Fq 'PACKAGE_VERSION=${PONDHOUSE_PACKAGE_VERSION:-2026.08.15-15}' "$COMMAND" || fail "production package release is pinned"; pass "production package release is pinned"
@@ -230,12 +290,13 @@ backup_dir=$(<"$run_dir/inventory/backup-path")
 [[ -L $fixture/home/.claude/untouched ]] || fail "migration excludes Claude"; pass "migration excludes Claude"
 [[ ! -e $fixture/home/.claude/changed && ! -e $fixture/home/.codex && ! -e $fixture/home/.pi ]] || fail "migration restores excluded agent state"; pass "migration restores excluded agent state"
 (( $(wc -l <"$fixture/home/package-actions") == 2 )) || fail "migration installs exact package artifacts"; pass "migration installs exact package artifacts"
-add_line=$(grep -n 'pacman-key --add' "$fixture/home/release-actions" | cut -d: -f1)
-sign_line=$(grep -n 'pacman-key --lsign-key' "$fixture/home/release-actions" | cut -d: -f1)
-keyring_line=$(grep -n 'pacman .*pondhouse-keyring' "$fixture/home/release-actions" | cut -d: -f1)
-populate_line=$(grep -n 'pacman-key --populate pondhouse' "$fixture/home/release-actions" | cut -d: -f1)
-package_line=$(grep -n 'pacman .*pondhouse-omarchy' "$fixture/home/release-actions" | cut -d: -f1)
-(( add_line < sign_line && sign_line < keyring_line && keyring_line < populate_line && populate_line < package_line )) || fail "migration establishes trust before package install"; pass "migration establishes trust before package install"
+preservation_line=$(grep -n '^preservation$' "$fixture/home/phase-actions" | cut -d: -f1)
+trust_line=$(grep -n '^trust-populated$' "$fixture/home/phase-actions" | head -n1 | cut -d: -f1)
+upstream_line=$(grep -n '^upstream$' "$fixture/home/phase-actions" | cut -d: -f1)
+package_line=$(grep -n '^company-installed$' "$fixture/home/phase-actions" | cut -d: -f1)
+reconciliation_line=$(grep -n '^reconciliation$' "$fixture/home/phase-actions" | head -n1 | cut -d: -f1)
+(( preservation_line < trust_line && trust_line < upstream_line && upstream_line < package_line && package_line < reconciliation_line )) || fail "migration phase ordering is safe"; pass "migration phase ordering is safe"
+[[ -f $run_dir/phases/pondhouse-trust-ready ]] || fail "migration records trust readiness"; pass "migration records trust readiness"
 grep -Fqx 'LocalFileSigLevel = Optional' "$fixture/pacman.conf" || fail "migration preserves global pacman policy"; pass "migration preserves global pacman policy"
 (( $(wc -l <"$fixture/home/reconciliation-actions") == 3 )) || fail "migration runs package-owned reconcilers"; pass "migration runs package-owned reconcilers"
 [[ -f $run_dir/phases/complete ]] || fail "migration records completion"; pass "migration records completion"
@@ -244,35 +305,62 @@ grep -Fqx 'LocalFileSigLevel = Optional' "$fixture/pacman.conf" || fail "migrati
 fixture=$(make_fixture altered-keyring)
 keyring_hash=$(sha256sum "$fixture/packages/pondhouse-keyring-1-any.pkg.tar.zst" | cut -d' ' -f1)
 printf 'altered\n' >>"$fixture/packages/pondhouse-keyring-1-any.pkg.tar.zst"
-if TEST_KEYRING_SHA256="$keyring_hash" run_migration "$fixture" --yes >/dev/null 2>&1; then
-  fail "altered keyring archive fails closed"
-fi
-[[ ! -e $fixture/home/upgrader-runs ]] || fail "altered keyring fails before destructive upgrade"; pass "altered keyring archive fails closed"
+expect_preconversion_failure "$fixture" "keyring checksum mismatch" "TEST_KEYRING_SHA256=$keyring_hash"
+
+fixture=$(make_fixture altered-package)
+package_hash=$(sha256sum "$fixture/packages/pondhouse-omarchy-2-x86_64.pkg.tar.zst" | cut -d' ' -f1)
+printf 'altered\n' >>"$fixture/packages/pondhouse-omarchy-2-x86_64.pkg.tar.zst"
+expect_preconversion_failure "$fixture" "company package checksum mismatch" "TEST_PACKAGE_SHA256=$package_hash"
+
+fixture=$(make_fixture altered-repository)
+repository_hash=$(sha256sum "$fixture/packages/pondhouse.db.tar.gz" | cut -d' ' -f1)
+printf 'altered\n' >>"$fixture/packages/pondhouse.db.tar.gz"
+expect_preconversion_failure "$fixture" "repository checksum mismatch" "TEST_REPOSITORY_SHA256=$repository_hash"
 
 fixture=$(make_fixture wrong-fingerprint)
-if TEST_SIGNING_FINGERPRINT=0000000000000000000000000000000000000000 run_migration "$fixture" --yes >/dev/null 2>&1; then
-  fail "wrong signing fingerprint fails closed"
-fi
-[[ ! -e $fixture/home/upgrader-runs ]] || fail "wrong fingerprint fails before destructive upgrade"; pass "wrong signing fingerprint fails closed"
+expect_preconversion_failure "$fixture" "wrong primary fingerprint" \
+  TEST_SIGNING_FINGERPRINT=0000000000000000000000000000000000000000
 
-fixture=$(make_fixture invalid-signature)
+fixture=$(make_fixture invalid-keyring-signature)
+printf 'invalid signature\n' >"$fixture/packages/pondhouse-keyring-1-any.pkg.tar.zst.sig"
+expect_preconversion_failure "$fixture" "invalid keyring signature"
+
+fixture=$(make_fixture invalid-package-signature)
 printf 'invalid signature\n' >"$fixture/packages/pondhouse-omarchy-2-x86_64.pkg.tar.zst.sig"
-if run_migration "$fixture" --yes >/dev/null 2>&1; then
-  fail "invalid package signature fails closed"
-fi
-[[ ! -e $fixture/home/upgrader-runs ]] || fail "invalid signature fails before destructive upgrade"; pass "invalid package signature fails closed"
+expect_preconversion_failure "$fixture" "invalid company package signature"
+
+fixture=$(make_fixture invalid-repository-signature)
+printf 'invalid signature\n' >"$fixture/packages/pondhouse.db.tar.gz.sig"
+expect_preconversion_failure "$fixture" "invalid repository signature"
 
 fixture=$(make_fixture unavailable-snapshot)
-if TEST_SNAPSHOT_URL=file:///does-not-exist run_migration "$fixture" --yes >/dev/null 2>&1; then
-  fail "unavailable snapshot fails closed"
-fi
-[[ ! -e $fixture/home/upgrader-runs ]] || fail "unavailable snapshot fails before destructive upgrade"; pass "unavailable snapshot fails closed"
+expect_preconversion_failure "$fixture" "unavailable snapshot" TEST_SNAPSHOT_URL=file:///does-not-exist
+
+fixture=$(make_fixture failed-key-add)
+expect_preconversion_failure "$fixture" "pacman-key add failure" MOCK_KEY_ADD_FAIL=1
+
+fixture=$(make_fixture failed-local-sign)
+expect_preconversion_failure "$fixture" "pacman-key local-sign failure" MOCK_KEY_LSIGN_FAIL=1
+
+fixture=$(make_fixture failed-active-export)
+expect_preconversion_failure "$fixture" "active fingerprint export mismatch" MOCK_EXPORT_MISMATCH=1
+
+fixture=$(make_fixture failed-keyring-install)
+expect_preconversion_failure "$fixture" "keyring pacman install failure" MOCK_KEYRING_INSTALL_FAIL=1
+
+fixture=$(make_fixture wrong-keyring-version)
+expect_preconversion_failure "$fixture" "wrong installed keyring version" MOCK_WRONG_KEYRING_VERSION=1
 
 fixture=$(make_fixture failed-population)
-if MOCK_POPULATE_FAIL=1 run_migration "$fixture" --yes >/dev/null 2>&1; then
-  fail "failed keyring population fails closed"
-fi
-[[ ! -e $fixture/pacman-gnupg/installed-package ]] || fail "failed population installs company package"; pass "failed keyring population fails closed"
+expect_preconversion_failure "$fixture" "failed keyring population" MOCK_POPULATE_FAIL=1
+
+fixture=$(make_fixture failed-post-population-export)
+expect_preconversion_failure "$fixture" "post-population fingerprint mismatch" \
+  MOCK_POST_POP_EXPORT_MISMATCH=1
+
+fixture=$(make_fixture rejected-by-pacman)
+expect_preconversion_failure "$fixture" "pacman package-signature rejection" \
+  MOCK_PACMAN_SIGNATURE_REJECT=1
 
 fixture=$(make_fixture preservation-resume)
 if MOCK_CP_FAIL_ON_BACKUP=1 run_migration "$fixture" --yes >/dev/null 2>&1; then
@@ -294,10 +382,28 @@ HOME="$fixture/home" USER=tester SHELL=/bin/zsh \
   PONDHOUSE_KEYRING_SHA256="$(sha256sum "$fixture/packages/pondhouse-keyring-1-any.pkg.tar.zst" | cut -d' ' -f1)" \
   PONDHOUSE_REPOSITORY_SHA256="$(sha256sum "$fixture/packages/pondhouse.db.tar.gz" | cut -d' ' -f1)" \
   PONDHOUSE_SNAPSHOT_URL="file://$fixture/packages" \
-  PONDHOUSE_PACMAN_CONFIG="$fixture/pacman.conf" MOCK_GPGDIR="$fixture/pacman-gnupg" \
+  PONDHOUSE_PACMAN_CONFIG="$fixture/pacman.conf" \
+  PONDHOUSE_PACMAN_KEYRING_DIR="$fixture/pacman-keyrings" \
+  MOCK_GPGDIR="$fixture/pacman-gnupg" MOCK_KEYRING_DIR="$fixture/pacman-keyrings" \
+  MOCK_PUBLIC_KEY="$fixture/keyring-root/usr/share/pacman/keyrings/pondhouse.gpg" \
   "$run_dir/pondhouse-upgrade-to-quattro" --resume "$run_dir" --yes >/dev/null
 [[ -f $run_dir/phases/complete ]] || fail "interrupted preservation resumes"; pass "interrupted preservation resumes"
 (( $(find "$fixture/backups" -mindepth 1 -maxdepth 1 -type d ! -name '*.partial' | wc -l) == 1 )) || fail "resume creates one permanent backup"; pass "resume creates one permanent backup"
+
+fixture=$(make_fixture company-install-resume)
+if MOCK_COMPANY_INSTALL_FAIL=1 run_migration "$fixture" --yes >/dev/null 2>&1; then
+  fail "failed company package installation fails"
+fi
+run_dir=$(readlink -f "$fixture/state/latest")
+[[ -f $run_dir/phases/pondhouse-trust-ready && -f $run_dir/phases/upstream-upgrade ]] || \
+  fail "post-conversion failure retains trust and upstream checkpoints"
+gpg --batch --homedir "$fixture/pacman-gnupg" --yes --delete-key "$(<"$fixture/fingerprint")" >/dev/null 2>&1
+rm -f "$fixture/pacman-gnupg/populated"
+run_migration "$fixture" --resume "$run_dir" --yes >/dev/null
+(( $(wc -l <"$fixture/home/upgrader-runs") == 1 )) || fail "resume reruns completed upstream conversion"
+[[ -f $fixture/pacman-gnupg/populated && -f $fixture/pacman-gnupg/installed-package ]] || \
+  fail "resume repairs and reverifies checkpointed trust"
+pass "resume reverifies trust and does not rerun completed upstream conversion"
 
 fixture=$(make_fixture resume)
 if MOCK_UPGRADER_FAIL=1 run_migration "$fixture" --yes >/dev/null 2>&1; then

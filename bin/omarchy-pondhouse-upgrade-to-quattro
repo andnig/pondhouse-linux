@@ -24,6 +24,7 @@ STATE_BASE=${PONDHOUSE_MIGRATION_STATE:-${XDG_STATE_HOME:-$HOME/.local/state}/po
 BACKUP_BASE=${PONDHOUSE_MIGRATION_BACKUPS:-${XDG_DATA_HOME:-$HOME/.local/share}/pondhouse/backups/quattro-migrations}
 QUATTRO_ROOT=${PONDHOUSE_QUATTRO_ROOT:-/usr/share/omarchy}
 PACMAN_CONFIG=${PONDHOUSE_PACMAN_CONFIG:-/etc/pacman.conf}
+PACMAN_KEYRING_DIR=${PONDHOUSE_PACMAN_KEYRING_DIR:-/usr/share/pacman/keyrings}
 DRY_RUN=0
 YES=0
 RUN_DIR=""
@@ -385,7 +386,7 @@ preflight_pondhouse_release() {
 
 verify_active_pacman_key() {
   local exported
-  exported=$(mktemp)
+  exported=$(mktemp "$RUN_DIR/downloads/active-pondhouse-key.XXXXXX")
   if ! sudo pacman-key --export "$SIGNING_FINGERPRINT" >"$exported"; then
     rm -f "$exported"
     return 1
@@ -394,46 +395,68 @@ verify_active_pacman_key() {
   rm -f "$exported"
 }
 
-install_pondhouse_release() {
-  local keyring="$RUN_DIR/downloads/pondhouse-keyring-$KEYRING_VERSION-any.pkg.tar.zst"
+run_pacman_with_required_local_signatures() {
+  local strict_config status
+  strict_config=$(mktemp "$RUN_DIR/downloads/pacman-required.XXXXXX")
+  cp "$PACMAN_CONFIG" "$strict_config"
+  if grep -q '^LocalFileSigLevel' "$strict_config"; then
+    sed -i 's/^LocalFileSigLevel.*/LocalFileSigLevel = Required/' "$strict_config"
+  else
+    printf '\nLocalFileSigLevel = Required\n' >>"$strict_config"
+  fi
+
+  status=0
+  sudo pacman --config "$strict_config" "$@" || status=$?
+  rm -f "$strict_config"
+  return "$status"
+}
+
+verify_keyring_install() {
+  [[ $(pacman -Q pondhouse-keyring 2>/dev/null) == "pondhouse-keyring $KEYRING_VERSION" ]] &&
+    sudo pacman -Qkk pondhouse-keyring >/dev/null &&
+    [[ -s $PACMAN_KEYRING_DIR/pondhouse.gpg ]] &&
+    [[ -f $PACMAN_KEYRING_DIR/pondhouse-trusted ]] &&
+    [[ -f $PACMAN_KEYRING_DIR/pondhouse-revoked ]]
+}
+
+verify_pacman_accepts_company_package() {
   local package="$RUN_DIR/downloads/pondhouse-omarchy-$PACKAGE_VERSION-x86_64.pkg.tar.zst"
-  local config strict_config
+  run_pacman_with_required_local_signatures -U --noconfirm --downloadonly "$package" >/dev/null
+}
+
+establish_pondhouse_trust() {
+  local keyring="$RUN_DIR/downloads/pondhouse-keyring-$KEYRING_VERSION-any.pkg.tar.zst"
   local public_key="$RUN_DIR/downloads/pondhouse-trust/usr/share/pacman/keyrings/pondhouse.gpg"
 
   preflight_pondhouse_release
-
-  if ! phase_done keyring-install; then
-    sudo pacman-key --add "$public_key"
-    sudo pacman-key --lsign-key "$SIGNING_FINGERPRINT"
-    verify_active_pacman_key
-
-    strict_config=$(mktemp)
-    cp "$PACMAN_CONFIG" "$strict_config"
-    if grep -q '^LocalFileSigLevel' "$strict_config"; then
-      sed -i 's/^LocalFileSigLevel.*/LocalFileSigLevel = Required/' "$strict_config"
-    else
-      printf '\nLocalFileSigLevel = Required\n' >>"$strict_config"
-    fi
-    sudo pacman --config "$strict_config" -U --noconfirm "$keyring"
-    rm -f "$strict_config"
-    [[ $(pacman -Q pondhouse-keyring) == "pondhouse-keyring $KEYRING_VERSION" ]]
-    sudo pacman-key --populate pondhouse
-    verify_active_pacman_key
-    mark_phase keyring-install
-  fi
-  [[ $(pacman -Q pondhouse-keyring) == "pondhouse-keyring $KEYRING_VERSION" ]]
+  sudo pacman-key --add "$public_key"
+  sudo pacman-key --lsign-key "$SIGNING_FINGERPRINT"
   verify_active_pacman_key
 
+  if ! verify_keyring_install; then
+    run_pacman_with_required_local_signatures -U --noconfirm --needed "$keyring"
+  fi
+  verify_keyring_install
+  sudo pacman-key --populate pondhouse
+  verify_active_pacman_key
+  verify_pacman_accepts_company_package
+  mark_phase pondhouse-trust-ready
+}
+
+verify_pondhouse_trust() {
+  verify_keyring_install
+  verify_active_pacman_key
+  verify_pacman_accepts_company_package
+}
+
+install_pondhouse_release() {
+  local package="$RUN_DIR/downloads/pondhouse-omarchy-$PACKAGE_VERSION-x86_64.pkg.tar.zst"
+  local config
+
+  verify_pondhouse_trust
+
   if ! phase_done company-package-install; then
-    strict_config=$(mktemp)
-    cp "$PACMAN_CONFIG" "$strict_config"
-    if grep -q '^LocalFileSigLevel' "$strict_config"; then
-      sed -i 's/^LocalFileSigLevel.*/LocalFileSigLevel = Required/' "$strict_config"
-    else
-      printf '\nLocalFileSigLevel = Required\n' >>"$strict_config"
-    fi
-    sudo pacman --config "$strict_config" -U --noconfirm --needed "$package"
-    rm -f "$strict_config"
+    run_pacman_with_required_local_signatures -U --noconfirm --needed "$package"
     [[ $(pacman -Q pondhouse-omarchy) == "pondhouse-omarchy $PACKAGE_VERSION" ]]
     mark_phase company-package-install
   fi
@@ -557,8 +580,10 @@ trap 'status=$?; if (( status != 0 )); then printf "\nMigration is incomplete. D
 
 phase_done release-preflight || preflight_pondhouse_release
 phase_done preservation || preserve_and_materialize
+establish_pondhouse_trust
 phase_done upstream-upgrade || run_upstream_upgrade
 phase_done protected-agent-state || restore_protected_agent_state
+verify_pondhouse_trust
 phase_done package-install || install_pondhouse_release
 phase_done reconciliation || reconcile_pondhouse
 phase_done defaults-restored || restore_defaults
