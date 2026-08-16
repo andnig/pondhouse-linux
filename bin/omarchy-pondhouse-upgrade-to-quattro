@@ -441,24 +441,47 @@ establish_pondhouse_trust() {
   local public_key="$RUN_DIR/downloads/pondhouse-trust/usr/share/pacman/keyrings/pondhouse.gpg"
 
   preflight_pondhouse_release
-  sudo pacman-key --add "$public_key"
-  sudo pacman-key --lsign-key "$SIGNING_FINGERPRINT"
-  verify_active_pacman_key
+  sudo pacman-key --add "$public_key" || {
+    echo "Failed to import the pinned Pondhouse key into the active pacman keyring" >&2
+    return 1
+  }
+  sudo pacman-key --lsign-key "$SIGNING_FINGERPRINT" || {
+    echo "Failed to locally trust the pinned Pondhouse signing fingerprint" >&2
+    return 1
+  }
+  verify_active_pacman_key || {
+    echo "Failed to export and verify the active Pondhouse signing fingerprint" >&2
+    return 1
+  }
 
   if ! verify_keyring_install; then
-    run_pacman_with_required_local_signatures -U --noconfirm --needed "$keyring"
+    run_pacman_with_required_local_signatures -U --noconfirm --needed "$keyring" || {
+      echo "Failed to install the exact signed Pondhouse keyring package" >&2
+      return 1
+    }
   fi
-  verify_keyring_install
-  sudo pacman-key --populate pondhouse
-  verify_active_pacman_key
-  verify_pacman_accepts_company_package
+  verify_keyring_install || {
+    echo "Failed to verify the installed Pondhouse keyring version and files" >&2
+    return 1
+  }
+  sudo pacman-key --populate pondhouse || {
+    echo "Failed to populate the active pacman keyring from the Pondhouse keyring package" >&2
+    return 1
+  }
+  verify_active_pacman_key || {
+    echo "Failed to verify the populated Pondhouse signing fingerprint" >&2
+    return 1
+  }
+  verify_pacman_accepts_company_package || {
+    echo "Real pacman rejected the pinned Pondhouse package signature" >&2
+    return 1
+  }
   mark_phase pondhouse-trust-ready
 }
 
 verify_pondhouse_trust() {
   verify_keyring_install
   verify_active_pacman_key
-  verify_pacman_accepts_company_package
 }
 
 install_pondhouse_release() {
@@ -477,7 +500,10 @@ install_pondhouse_release() {
   if ! phase_done stable-repository; then
     config=$(mktemp)
     printf '[pondhouse]\nSigLevel = Required\nServer = %s\n' "$STABLE_URL" >"$config"
-    sudo install -Dm644 "$config" /etc/pacman.d/pondhouse.conf
+    if ! sudo install -Dm644 "$config" /etc/pacman.d/pondhouse.conf; then
+      rm -f "$config"
+      return 1
+    fi
     rm -f "$config"
     if ! grep -Fqx 'Include = /etc/pacman.d/pondhouse.conf' /etc/pacman.conf; then
       printf '\nInclude = /etc/pacman.d/pondhouse.conf\n' | sudo tee -a /etc/pacman.conf >/dev/null

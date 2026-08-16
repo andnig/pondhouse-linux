@@ -121,11 +121,12 @@ run_migration() {
   "$COMMAND" --yes
 }
 
-if run_migration rejected-state >/dev/null 2>&1; then
+if run_migration rejected-state >"$WORK/rejection-output" 2>&1; then
   echo "not ok - real pacman accepted a package revoked by populated policy" >&2
   exit 1
 fi
 [[ ! -e $HOME_DIR/upgrader-runs ]]
+grep -Fq 'Real pacman rejected the pinned Pondhouse package signature' "$WORK/rejection-output"
 echo "ok - real pacman policy rejection leaves upstream invocation count at zero"
 
 pacman -Rdd --noconfirm pondhouse-keyring >/dev/null

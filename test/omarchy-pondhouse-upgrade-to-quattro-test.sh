@@ -254,6 +254,8 @@ expect_preconversion_failure() {
   [[ ! -e $fixture/home/upgrader-runs ]] || fail "$label invokes upstream"
   grep -Fq 'Migration is incomplete. Do not reboot. Resume with:' "$output" || \
     fail "$label omits failure and resume guidance"
+  grep -Eq 'FAILED|did NOT match|fingerprint mismatch|gpgv:|curl:|Failed to |Real pacman rejected' "$output" || \
+    fail "$label omits the failure cause"
   if [[ -d $fixture/state/latest/downloads ]]; then
     ! find "$fixture/state/latest/downloads" -maxdepth 1 \
       \( -name 'active-pondhouse-key.*' -o -name 'pacman-required.*' \) -print -quit | grep -q . || \
