@@ -16,13 +16,6 @@ pass() {
   echo "ok - $1"
 }
 
-assert() {
-  local description=$1
-  shift
-  "$@" || fail "$description"
-  pass "$description"
-}
-
 make_fixture() {
   local name=$1 fixture
   fixture="$TMPDIR/$name"
@@ -49,8 +42,11 @@ make_fixture() {
   cat >"$fixture/upgrader" <<'EOF'
 #!/bin/bash
 echo run >>"$HOME/upgrader-runs"
-if [[ ${MOCK_UPGRADER_FAIL:-0} == 1 ]]; then
+if (( ${MOCK_UPGRADER_FAIL:-0} == 1 )); then
   exit 1
+fi
+if gum confirm "Reboot to complete Quattro upgrade now?"; then
+  touch "$HOME/rebooted"
 fi
 mkdir -p "$PONDHOUSE_QUATTRO_ROOT"
 EOF
@@ -65,17 +61,26 @@ EOF
 #!/bin/bash
 case "${1:-}" in
   -Q)
-    if [[ ${2:-} == "pondhouse-omarchy" ]]; then
-      echo "pondhouse-omarchy 2"
-    else
-      echo "git 1"
-    fi
+    case "${2:-}" in
+      pondhouse-omarchy) echo "pondhouse-omarchy 2" ;;
+      pondhouse-keyring) echo "pondhouse-keyring 1" ;;
+      *) echo "git 1" ;;
+    esac
     ;;
   -Qqe) echo git ;;
   -Qqm) echo foreign-package ;;
   -Qkk) echo "pondhouse-omarchy: 1 total file, 0 altered files" ;;
   -U) printf 'pacman %s\n' "$*" >>"$HOME/package-actions" ;;
 esac
+EOF
+
+  cat >"$fixture/bin/cp" <<'EOF'
+#!/bin/bash
+destination=${@: -1}
+/usr/bin/cp "$@"
+if (( ${MOCK_CP_FAIL_ON_BACKUP:-0} == 1 )) && [[ $destination == */backups/*.partial ]]; then
+  exit 1
+fi
 EOF
 
   cat >"$fixture/bin/systemctl" <<'EOF'
@@ -118,6 +123,7 @@ run_migration() {
     PONDHOUSE_LEGACY_ROOT="$fixture/home/.local/share/omarchy" \
     PONDHOUSE_QUATTRO_ROOT="$fixture/quattro-root" \
     PONDHOUSE_MIGRATION_STATE="$fixture/state" \
+    PONDHOUSE_MIGRATION_BACKUPS="$fixture/backups" \
     PONDHOUSE_UPGRADER_FILE="$fixture/upgrader" \
     PONDHOUSE_UPGRADER_SHA256="$(sha256sum "$fixture/upgrader" | cut -d' ' -f1)" \
     PONDHOUSE_PACKAGE_VERSION=2 PONDHOUSE_KEYRING_VERSION=1 \
@@ -130,23 +136,35 @@ run_migration() {
 fixture=$(make_fixture dry-run)
 run_migration "$fixture" --dry-run --yes >/dev/null
 run_dir=$(find "$fixture/state" -mindepth 1 -maxdepth 1 -type d -name '*-dry-run' -print -quit)
-assert "dry run records git state" test -s "$run_dir/inventory/legacy-status.txt"
-assert "dry run inventories ignored paths" grep -Fq 'config/opencode/secret.json' "$run_dir/inventory/legacy-ignored.tsv"
-assert "dry run records nested checkout links" grep -Fq "$fixture/home/.agents/nested-legacy" "$run_dir/inventory/materialized-links.tsv"
-assert "dry run leaves checkout link intact" test -L "$fixture/home/.config/nested"
-assert "dry run makes no backup" test ! -e "$run_dir/legacy-checkout"
+[[ -s $run_dir/inventory/legacy-status.txt ]] || fail "dry run records git state"; pass "dry run records git state"
+grep -Fq 'config/opencode/secret.json' "$run_dir/inventory/legacy-ignored.tsv" || fail "dry run inventories ignored paths"; pass "dry run inventories ignored paths"
+grep -Fq "$fixture/home/.agents/nested-legacy" "$run_dir/inventory/materialized-links.tsv" || fail "dry run records nested checkout links"; pass "dry run records nested checkout links"
+[[ -L $fixture/home/.config/nested ]] || fail "dry run leaves checkout link intact"; pass "dry run leaves checkout link intact"
+[[ ! -e $fixture/backups ]] || fail "dry run makes no backup"; pass "dry run makes no backup"
 
 fixture=$(make_fixture complete)
 run_migration "$fixture" --yes >/dev/null
 run_dir=$(readlink -f "$fixture/state/latest")
-assert "migration keeps a private checkout backup" test -f "$run_dir/legacy-checkout/config/opencode/secret.json"
-assert "migration materializes selected top-level link" test ! -L "$fixture/home/.agents"
-assert "migration materializes selected config link" test ! -L "$fixture/home/.config/nested"
-assert "migration materializes nested legacy link" test ! -L "$fixture/home/.agents/nested-legacy"
-assert "migration excludes Claude" test -L "$fixture/home/.claude/untouched"
-assert "migration installs exact package artifacts" test "$(wc -l <"$fixture/home/package-actions")" -eq 2
-assert "migration runs package-owned reconcilers" test "$(wc -l <"$fixture/home/reconciliation-actions")" -eq 3
-assert "migration records completion" test -f "$run_dir/phases/complete"
+backup_dir=$(<"$run_dir/inventory/backup-path")
+[[ -f $backup_dir/config/opencode/secret.json ]] || fail "migration keeps a private data backup"; pass "migration keeps a private data backup"
+[[ ! -L $fixture/home/.agents ]] || fail "migration materializes selected top-level link"; pass "migration materializes selected top-level link"
+[[ ! -L $fixture/home/.config/nested ]] || fail "migration materializes selected config link"; pass "migration materializes selected config link"
+[[ ! -L $fixture/home/.agents/nested-legacy ]] || fail "migration materializes nested legacy link"; pass "migration materializes nested legacy link"
+[[ -L $fixture/home/.claude/untouched ]] || fail "migration excludes Claude"; pass "migration excludes Claude"
+(( $(wc -l <"$fixture/home/package-actions") == 2 )) || fail "migration installs exact package artifacts"; pass "migration installs exact package artifacts"
+(( $(wc -l <"$fixture/home/reconciliation-actions") == 3 )) || fail "migration runs package-owned reconcilers"; pass "migration runs package-owned reconcilers"
+[[ -f $run_dir/phases/complete ]] || fail "migration records completion"; pass "migration records completion"
+[[ ! -e $fixture/home/rebooted ]] || fail "migration suppresses upstream reboot"; pass "migration suppresses upstream reboot"
+
+fixture=$(make_fixture preservation-resume)
+if MOCK_CP_FAIL_ON_BACKUP=1 run_migration "$fixture" --yes >/dev/null 2>&1; then
+  fail "interrupted preservation fails"
+fi
+pass "interrupted preservation fails"
+run_dir=$(readlink -f "$fixture/state/latest")
+run_migration "$fixture" --resume "$run_dir" --yes >/dev/null
+[[ -f $run_dir/phases/complete ]] || fail "interrupted preservation resumes"; pass "interrupted preservation resumes"
+(( $(find "$fixture/backups" -mindepth 1 -maxdepth 1 -type d ! -name '*.partial' | wc -l) == 1 )) || fail "resume creates one permanent backup"; pass "resume creates one permanent backup"
 
 fixture=$(make_fixture resume)
 if MOCK_UPGRADER_FAIL=1 run_migration "$fixture" --yes >/dev/null 2>&1; then
@@ -154,10 +172,10 @@ if MOCK_UPGRADER_FAIL=1 run_migration "$fixture" --yes >/dev/null 2>&1; then
 fi
 pass "interrupted upstream upgrade fails"
 run_dir=$(readlink -f "$fixture/state/latest")
-assert "partial migration is not complete" test ! -e "$run_dir/phases/complete"
+[[ ! -e $run_dir/phases/complete ]] || fail "partial migration is not complete"; pass "partial migration is not complete"
 run_migration "$fixture" --resume "$run_dir" --yes >/dev/null
-assert "resume reuses the original backup" test "$(find "$fixture/state" -mindepth 1 -maxdepth 1 -type d | wc -l)" -eq 1
-assert "resume reruns only incomplete upstream phase" test "$(wc -l <"$fixture/home/upgrader-runs")" -eq 2
-assert "resume completes migration" test -f "$run_dir/phases/complete"
+(( $(find "$fixture/state" -mindepth 1 -maxdepth 1 -type d | wc -l) == 1 )) || fail "resume reuses the original state"; pass "resume reuses the original state"
+(( $(wc -l <"$fixture/home/upgrader-runs") == 2 )) || fail "resume reruns only incomplete upstream phase"; pass "resume reruns only incomplete upstream phase"
+[[ -f $run_dir/phases/complete ]] || fail "resume completes migration"; pass "resume completes migration"
 
 echo "All Pondhouse package-backed Quattro migration tests passed"

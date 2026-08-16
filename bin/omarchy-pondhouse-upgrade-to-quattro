@@ -20,6 +20,7 @@ SNAPSHOT_URL=${PONDHOUSE_SNAPSHOT_URL:-https://packages.pondhouse-data.com/snaps
 STABLE_URL=${PONDHOUSE_STABLE_URL:-https://packages.pondhouse-data.com/stable/\$arch}
 LEGACY_ROOT=${PONDHOUSE_LEGACY_ROOT:-$HOME/.local/share/omarchy}
 STATE_BASE=${PONDHOUSE_MIGRATION_STATE:-${XDG_STATE_HOME:-$HOME/.local/state}/pondhouse/quattro-migrations}
+BACKUP_BASE=${PONDHOUSE_MIGRATION_BACKUPS:-${XDG_DATA_HOME:-$HOME/.local/share}/pondhouse/backups/quattro-migrations}
 QUATTRO_ROOT=${PONDHOUSE_QUATTRO_ROOT:-/usr/share/omarchy}
 DRY_RUN=0
 YES=0
@@ -162,6 +163,8 @@ write_inventory() {
   write_command_output "$RUN_DIR/inventory/default-browser.txt" env -u BROWSER xdg-settings get default-web-browser
   sed -n 's/^export EDITOR=//p' "$HOME/.config/uwsm/default" 2>/dev/null | head -n1 \
     >"$RUN_DIR/inventory/default-editor.txt" || true
+  [[ ! -f $HOME/.config/mimeapps.list ]] || \
+    cp -a "$HOME/.config/mimeapps.list" "$RUN_DIR/inventory/mimeapps.list"
   write_command_output "$RUN_DIR/inventory/default-applications.txt" find "$HOME/.local/share/applications" -maxdepth 1 -type f -printf '%f\n'
   write_command_output "$RUN_DIR/inventory/onboarding-state.txt" find "$HOME/.local/state/omarchy" "$HOME/.config/omarchy" -maxdepth 3 -type f -printf '%p\t%s bytes\n'
 
@@ -200,7 +203,7 @@ materialize_link() {
 }
 
 preserve_and_materialize() {
-  local available backup_bytes required reserve path
+  local available backup_bytes backup_dir partial_backup required reserve path
   required=$(materialization_size)
   backup_bytes=$(du -sb -- "$LEGACY_ROOT" | cut -f1)
   required=$((required + backup_bytes))
@@ -211,7 +214,14 @@ preserve_and_materialize() {
     exit 1
   fi
 
-  cp -a --reflink=auto "$LEGACY_ROOT" "$RUN_DIR/legacy-checkout"
+  backup_dir=$(<"$RUN_DIR/inventory/backup-path")
+  if [[ ! -d $backup_dir ]]; then
+    partial_backup="$backup_dir.partial"
+    rm -rf -- "$partial_backup"
+    mkdir -p "$(dirname -- "$backup_dir")"
+    cp -a --reflink=auto "$LEGACY_ROOT" "$partial_backup"
+    mv "$partial_backup" "$backup_dir"
+  fi
   while IFS=$'\t' read -r path _; do
     [[ -n $path ]] || continue
     echo "Materializing $path"
@@ -224,10 +234,10 @@ stage_upgrader() {
   local destination=$1
   if [[ -n ${PONDHOUSE_UPGRADER_FILE:-} ]]; then
     cp "$PONDHOUSE_UPGRADER_FILE" "$destination"
+    printf '%s  %s\n' "$UPGRADER_SHA256" "$destination" | sha256sum -c - >/dev/null
   else
-    curl -fsSL --retry 3 "$UPGRADER_URL" -o "$destination"
+    download_verified "$UPGRADER_URL" "$destination" "$UPGRADER_SHA256" 0
   fi
-  printf '%s  %s\n' "$UPGRADER_SHA256" "$destination" | sha256sum -c - >/dev/null
   chmod 700 "$destination"
 }
 
@@ -252,10 +262,10 @@ EOF
 }
 
 download_verified() {
-  local url=$1 destination=$2 checksum=$3
+  local url=$1 destination=$2 checksum=$3 signature=${4:-1}
   curl -fsSL --retry 3 "$url" -o "$destination"
   printf '%s  %s\n' "$checksum" "$destination" | sha256sum -c - >/dev/null
-  curl -fsSL --retry 3 "$url.sig" -o "$destination.sig"
+  (( signature )) && curl -fsSL --retry 3 "$url.sig" -o "$destination.sig"
 }
 
 install_pondhouse_release() {
@@ -265,6 +275,7 @@ install_pondhouse_release() {
 
   download_verified "$SNAPSHOT_URL/${keyring##*/}" "$keyring" "$KEYRING_SHA256"
   sudo pacman -U --noconfirm "$keyring"
+  [[ $(pacman -Q pondhouse-keyring) == "pondhouse-keyring $KEYRING_VERSION" ]]
   sudo pacman-key --list-keys "$SIGNING_FINGERPRINT" >/dev/null
 
   download_verified "$SNAPSHOT_URL/${package##*/}" "$package" "$PACKAGE_SHA256"
@@ -282,7 +293,8 @@ install_pondhouse_release() {
 }
 
 reconcile_pondhouse() {
-  export PONDHOUSE_LEGACY_CHECKOUT="$RUN_DIR/legacy-checkout"
+  export PONDHOUSE_LEGACY_CHECKOUT
+  PONDHOUSE_LEGACY_CHECKOUT=$(<"$RUN_DIR/inventory/backup-path")
   omarchy-pondhouse-reconcile-packages
   sudo omarchy-pondhouse-reconcile-system
   omarchy-pondhouse-reconcile-user
@@ -309,6 +321,9 @@ restore_defaults() {
       code|cursor|zeditor|sublime_text|helix|vim|emacs|nvim) omarchy-default-editor "$editor" ;;
     esac
   fi
+  if [[ -f $RUN_DIR/inventory/mimeapps.list ]]; then
+    install -Dm600 "$RUN_DIR/inventory/mimeapps.list" "$HOME/.config/mimeapps.list"
+  fi
   mark_phase defaults-restored
 }
 
@@ -320,10 +335,12 @@ if [[ -n $RUN_DIR ]]; then
   }
 else
   timestamp=$(date +%Y%m%d%H%M%S)
-  suffix=$([[ $DRY_RUN == 1 ]] && printf '%s' -dry-run || true)
+  suffix=""
+  (( DRY_RUN )) && suffix=-dry-run
   RUN_DIR="$STATE_BASE/$timestamp$suffix"
   mkdir -p "$RUN_DIR"
   write_inventory
+  printf '%s\n' "$BACKUP_BASE/$timestamp" >"$RUN_DIR/inventory/backup-path"
 fi
 
 link_count=$(wc -l <"$RUN_DIR/inventory/materialized-links.tsv")
@@ -367,7 +384,8 @@ trap - EXIT
 cat <<EOF
 
 Pondhouse Quattro migration completed.
-Migration records and permanent backup: $RUN_DIR
+Migration records: $RUN_DIR
+Permanent checkout backup: $(<"$RUN_DIR/inventory/backup-path")
 
 Reboot when ready, then run omarchy-pondhouse-parity.
 EOF
