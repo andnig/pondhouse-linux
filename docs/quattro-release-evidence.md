@@ -1,22 +1,20 @@
 # Quattro Rollout Evidence
 
-Release `pondhouse-omarchy 2026.08.15-16` was checked against the immutable
+Release `pondhouse-omarchy 2026.08.15-34` was checked against the immutable
 snapshot at
-`https://packages.pondhouse-data.com/snapshots/2026.08.15-16/x86_64` on
-2026-08-16.
+`https://packages.pondhouse-data.com/snapshots/2026.08.15-34/x86_64` on
+2026-08-17.
 
 | Artifact | SHA-256 |
 | --- | --- |
-| `pondhouse-keyring-2026.08.15-1-any.pkg.tar.zst` | `4d0aaad00d9d15a89f4980c3ff71a4c7897d7b2694797af9c1a59b32fcc9141f` |
-| `pondhouse-omarchy-2026.08.15-16-x86_64.pkg.tar.zst` | `d80d18b6e6c0bfcc0f14123e948f4f3dab36a46f7f9677c53716ba054978772e` |
-| `pondhouse.db.tar.gz` | `3b4b90cb8a280c0aa789c4fa4e7465abc947d2b760aaa4e7e80cef71027ce426` |
+| `pondhouse-keyring-2026.08.15-1-any.pkg.tar.zst` | `fcb8a8dda4b079dd35790191dbfcb0948f5986071204e2e9e6db1391050c6c75` |
+| `pondhouse-omarchy-2026.08.15-34-x86_64.pkg.tar.zst` | `a02d0d36da20dd3d7d966c54502569bb2a8986a4972e6a44ad5748e872b32b12` |
+| `pondhouse.db.tar.gz` | `553818293c051058dfb65e8fc936fbebc6b267feffbca8b44b4f584596ac8972` |
 
-The migration release-safety correction is commit
-`62d4ad9c2ec31e35be4eb4edc31dd90e2a61ffc9`. It retains the existing artifact
-pins and verifies the full primary fingerprint
-`2E4DE2E86D2D5D4EF994B0A849EE396C83FEEC69`. No package or ISO was rebuilt.
-The published ISO remains `pondhouse-linux-2026.08.16-1-x86_64.iso` with
-SHA-256 `3fe52a07042116016db7b0fd73fc318adac952d57c0e41dd9a8de2b5d8dd02ce`.
+The package source is commit `03f1417d6bdada2eff62058d27779923c54ce012`.
+The database and both packages have valid signatures from the trusted Pondhouse
+signing key. The v3 updater and ISO builder pin this exact snapshot and the full
+primary fingerprint `2E4DE2E86D2D5D4EF994B0A849EE396C83FEEC69`.
 
 The fast migration contract suite is reproducible with:
 

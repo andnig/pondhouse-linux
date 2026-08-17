@@ -300,9 +300,9 @@ expect_preconversion_failure() {
 }
 
 grep -Fq 'PACKAGE_VERSION=${PONDHOUSE_PACKAGE_VERSION:-2026.08.15-34}' "$COMMAND" || fail "production package release is pinned"; pass "production package release is pinned"
-grep -Fq 'PACKAGE_SHA256=${PONDHOUSE_PACKAGE_SHA256:-66561287e7a8988216dac83fe836db07be75a643f8ac0fbc34ea79011190c86d}' "$COMMAND" || fail "production package checksum is pinned"; pass "production package checksum is pinned"
-grep -Fq 'KEYRING_SHA256=${PONDHOUSE_KEYRING_SHA256:-d4e41fa5bc79de1ede3fd27202558d722d4ce433b98a6110e0736db2b7ada257}' "$COMMAND" || fail "production keyring checksum is pinned"; pass "production keyring checksum is pinned"
-grep -Fq 'REPOSITORY_SHA256=${PONDHOUSE_REPOSITORY_SHA256:-3c3a14bfef30b20031a8f70fb9e188501e869c59433fdd630b3fb4dc7b2cf9ea}' "$COMMAND" || fail "production repository checksum is pinned"; pass "production repository checksum is pinned"
+grep -Fq 'PACKAGE_SHA256=${PONDHOUSE_PACKAGE_SHA256:-a02d0d36da20dd3d7d966c54502569bb2a8986a4972e6a44ad5748e872b32b12}' "$COMMAND" || fail "production package checksum is pinned"; pass "production package checksum is pinned"
+grep -Fq 'KEYRING_SHA256=${PONDHOUSE_KEYRING_SHA256:-fcb8a8dda4b079dd35790191dbfcb0948f5986071204e2e9e6db1391050c6c75}' "$COMMAND" || fail "production keyring checksum is pinned"; pass "production keyring checksum is pinned"
+grep -Fq 'REPOSITORY_SHA256=${PONDHOUSE_REPOSITORY_SHA256:-553818293c051058dfb65e8fc936fbebc6b267feffbca8b44b4f584596ac8972}' "$COMMAND" || fail "production repository checksum is pinned"; pass "production repository checksum is pinned"
 if grep -Fq 'configure_employee_zshrc' "$COMMAND"; then fail "migration duplicates package-owned shell policy"; fi; pass "migration delegates shell policy to package reconcilers"
 
 fixture=$(make_fixture dry-run)
