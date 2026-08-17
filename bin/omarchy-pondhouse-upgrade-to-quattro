@@ -11,11 +11,11 @@ umask 077
 
 UPGRADER_URL=${PONDHOUSE_UPGRADER_URL:-https://raw.githubusercontent.com/basecamp/omarchy/f0020448ca87329199de7cb12f2015ebc4a3e5e7/bin/omarchy-upgrade-to-quattro}
 UPGRADER_SHA256=${PONDHOUSE_UPGRADER_SHA256:-fd5f311313c87bf25429220a3c4e65da755ee0c2e78648a20e30e86133495fd4}
-PACKAGE_VERSION=${PONDHOUSE_PACKAGE_VERSION:-2026.08.15-16}
+PACKAGE_VERSION=${PONDHOUSE_PACKAGE_VERSION:-2026.08.15-19}
 KEYRING_VERSION=${PONDHOUSE_KEYRING_VERSION:-2026.08.15-1}
 KEYRING_SHA256=${PONDHOUSE_KEYRING_SHA256:-4d0aaad00d9d15a89f4980c3ff71a4c7897d7b2694797af9c1a59b32fcc9141f}
-PACKAGE_SHA256=${PONDHOUSE_PACKAGE_SHA256:-d80d18b6e6c0bfcc0f14123e948f4f3dab36a46f7f9677c53716ba054978772e}
-REPOSITORY_SHA256=${PONDHOUSE_REPOSITORY_SHA256:-3b4b90cb8a280c0aa789c4fa4e7465abc947d2b760aaa4e7e80cef71027ce426}
+PACKAGE_SHA256=${PONDHOUSE_PACKAGE_SHA256:-9b3c007609400dd890363bfc44a4a0e65e6f02d9bc0a4968c03351fbd53fdacb}
+REPOSITORY_SHA256=${PONDHOUSE_REPOSITORY_SHA256:-aa97b57b6f90c2c3f5c803e0dc1424f2774fe2d77bb0c7c77c55178eed3da3f6}
 SIGNING_FINGERPRINT=${PONDHOUSE_SIGNING_FINGERPRINT:-2E4DE2E86D2D5D4EF994B0A849EE396C83FEEC69}
 SNAPSHOT_URL=${PONDHOUSE_SNAPSHOT_URL:-https://packages.pondhouse-data.com/snapshots/$PACKAGE_VERSION/x86_64}
 STABLE_URL=${PONDHOUSE_STABLE_URL:-https://packages.pondhouse-data.com/stable/\$arch}
@@ -25,6 +25,7 @@ BACKUP_BASE=${PONDHOUSE_MIGRATION_BACKUPS:-${XDG_DATA_HOME:-$HOME/.local/share}/
 QUATTRO_ROOT=${PONDHOUSE_QUATTRO_ROOT:-/usr/share/omarchy}
 PACMAN_CONFIG=${PONDHOUSE_PACMAN_CONFIG:-/etc/pacman.conf}
 PACMAN_KEYRING_DIR=${PONDHOUSE_PACMAN_KEYRING_DIR:-/usr/share/pacman/keyrings}
+PONDHOUSE_SHARE_DIR=${PONDHOUSE_SHARE_DIR:-/usr/share/pondhouse}
 DRY_RUN=0
 YES=0
 RUN_DIR=""
@@ -582,6 +583,16 @@ configure_mise_tools() {
   mark_phase mise-tools
 }
 
+configure_herdr_tab_scripts() {
+  phase_done herdr-tab-scripts && return 0
+  local name
+  mkdir -p "$HOME/scripts"
+  for name in herdr-close-tab.sh herdr-move-tab.sh herdr-renumber-tabs.sh; do
+    install -m755 "$PONDHOUSE_SHARE_DIR/scripts/$name" "$HOME/scripts/$name"
+  done
+  mark_phase herdr-tab-scripts
+}
+
 configure_employee_zshrc() {
   phase_done employee-zshrc && return 0
   cat >"$HOME/.zshrc.pondhouse-new" <<'EOF'
@@ -733,6 +744,7 @@ phase_done package-install || install_pondhouse_release
 sync_pondhouse_repository
 phase_done reconciliation || reconcile_pondhouse
 configure_mise_tools
+configure_herdr_tab_scripts
 configure_employee_zshrc
 phase_done defaults-restored || restore_defaults
 mark_phase complete

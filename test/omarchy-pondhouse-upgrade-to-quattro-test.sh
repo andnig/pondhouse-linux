@@ -24,8 +24,12 @@ make_fixture() {
     "$fixture/home/.local/share/omarchy/config/nested" \
     "$fixture/home/.config" "$fixture/home/.claude" "$fixture/bin" \
     "$fixture/packages" "$fixture/quattro-root" "$fixture/signing" "$fixture/pacman-gnupg" \
-    "$fixture/pacman-keyrings"
+    "$fixture/pacman-keyrings" "$fixture/share/scripts"
   chmod 700 "$fixture/signing" "$fixture/pacman-gnupg"
+  for script in herdr-close-tab.sh herdr-move-tab.sh herdr-renumber-tabs.sh; do
+    printf '#!/bin/bash\nprintf %s\\n %q\n' "$script" "$script" >"$fixture/share/scripts/$script"
+    chmod 755 "$fixture/share/scripts/$script"
+  done
 
   printf 'legacy\n' >"$fixture/home/.local/share/omarchy/config/nested/value"
   printf 'ignored\n' >"$fixture/home/.local/share/omarchy/config/opencode/secret.json"
@@ -257,6 +261,7 @@ run_migration() {
     PONDHOUSE_SNAPSHOT_URL="${TEST_SNAPSHOT_URL:-file://$fixture/packages}" \
     PONDHOUSE_PACMAN_CONFIG="$fixture/pacman.conf" \
     PONDHOUSE_PACMAN_KEYRING_DIR="$fixture/pacman-keyrings" \
+    PONDHOUSE_SHARE_DIR="$fixture/share" \
     MOCK_GPGDIR="$fixture/pacman-gnupg" MOCK_KEYRING_DIR="$fixture/pacman-keyrings" \
     MOCK_PUBLIC_KEY="$fixture/keyring-root/usr/share/pacman/keyrings/pondhouse.gpg" \
     "$COMMAND" "$@"
@@ -285,10 +290,10 @@ expect_preconversion_failure() {
   pass "$label leaves upstream invocation count at zero"
 }
 
-grep -Fq 'PACKAGE_VERSION=${PONDHOUSE_PACKAGE_VERSION:-2026.08.15-16}' "$COMMAND" || fail "production package release is pinned"; pass "production package release is pinned"
-grep -Fq 'PACKAGE_SHA256=${PONDHOUSE_PACKAGE_SHA256:-d80d18b6e6c0bfcc0f14123e948f4f3dab36a46f7f9677c53716ba054978772e}' "$COMMAND" || fail "production package checksum is pinned"; pass "production package checksum is pinned"
+grep -Fq 'PACKAGE_VERSION=${PONDHOUSE_PACKAGE_VERSION:-2026.08.15-19}' "$COMMAND" || fail "production package release is pinned"; pass "production package release is pinned"
+grep -Fq 'PACKAGE_SHA256=${PONDHOUSE_PACKAGE_SHA256:-9b3c007609400dd890363bfc44a4a0e65e6f02d9bc0a4968c03351fbd53fdacb}' "$COMMAND" || fail "production package checksum is pinned"; pass "production package checksum is pinned"
 grep -Fq 'KEYRING_SHA256=${PONDHOUSE_KEYRING_SHA256:-4d0aaad00d9d15a89f4980c3ff71a4c7897d7b2694797af9c1a59b32fcc9141f}' "$COMMAND" || fail "production keyring checksum is pinned"; pass "production keyring checksum is pinned"
-grep -Fq 'REPOSITORY_SHA256=${PONDHOUSE_REPOSITORY_SHA256:-3b4b90cb8a280c0aa789c4fa4e7465abc947d2b760aaa4e7e80cef71027ce426}' "$COMMAND" || fail "production repository checksum is pinned"; pass "production repository checksum is pinned"
+grep -Fq 'REPOSITORY_SHA256=${PONDHOUSE_REPOSITORY_SHA256:-aa97b57b6f90c2c3f5c803e0dc1424f2774fe2d77bb0c7c77c55178eed3da3f6}' "$COMMAND" || fail "production repository checksum is pinned"; pass "production repository checksum is pinned"
 
 fixture=$(make_fixture dry-run)
 truncate -s 2M "$fixture/home/.claude/agent-state"
@@ -335,6 +340,12 @@ grep -Fqx 'setopt APPEND_HISTORY' "$fixture/home/.zshrc" || fail "migration copi
 grep -Fqx '  herdr' "$fixture/home/.zshrc" || fail "migration preserves shell after Herdr detach"; pass "migration preserves shell after Herdr detach"
 grep -Fq '_pondhouse_herdr_rename_tab_from_pwd' "$fixture/home/.zshrc" || fail "migration configures numbered Herdr directory tabs"; pass "migration configures numbered Herdr directory tabs"
 grep -Fq '${#tab_name} > 24' "$fixture/home/.zshrc" || fail "migration bounds Herdr directory tab names"; pass "migration bounds Herdr directory tab names"
+for script in herdr-close-tab.sh herdr-move-tab.sh herdr-renumber-tabs.sh; do
+  cmp -s "$fixture/share/scripts/$script" "$fixture/home/scripts/$script" || \
+    fail "migration installs $script"
+  [[ -x $fixture/home/scripts/$script ]] || fail "migration makes $script executable"
+done
+pass "migration installs Herdr tab lifecycle scripts"
 
 fixture=$(make_fixture downloaded-upgrader)
 TEST_DOWNLOAD_UPGRADER=1 run_migration "$fixture" --yes >/dev/null
