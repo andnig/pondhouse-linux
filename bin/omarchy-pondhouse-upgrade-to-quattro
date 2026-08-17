@@ -11,11 +11,11 @@ umask 077
 
 UPGRADER_URL=${PONDHOUSE_UPGRADER_URL:-https://raw.githubusercontent.com/basecamp/omarchy/f0020448ca87329199de7cb12f2015ebc4a3e5e7/bin/omarchy-upgrade-to-quattro}
 UPGRADER_SHA256=${PONDHOUSE_UPGRADER_SHA256:-fd5f311313c87bf25429220a3c4e65da755ee0c2e78648a20e30e86133495fd4}
-PACKAGE_VERSION=${PONDHOUSE_PACKAGE_VERSION:-2026.08.15-21}
+PACKAGE_VERSION=${PONDHOUSE_PACKAGE_VERSION:-2026.08.15-22}
 KEYRING_VERSION=${PONDHOUSE_KEYRING_VERSION:-2026.08.15-1}
 KEYRING_SHA256=${PONDHOUSE_KEYRING_SHA256:-4d0aaad00d9d15a89f4980c3ff71a4c7897d7b2694797af9c1a59b32fcc9141f}
-PACKAGE_SHA256=${PONDHOUSE_PACKAGE_SHA256:-ae6a2fc765f71e74745fac87cfadc6dd7a30010bbc4db62267ae28db4116c550}
-REPOSITORY_SHA256=${PONDHOUSE_REPOSITORY_SHA256:-ce1fb4d54d2a70fcaaf647abde3df8342f5f489e5bad4937f1499e4f82f434d6}
+PACKAGE_SHA256=${PONDHOUSE_PACKAGE_SHA256:-d5708cca7ac482c5e9b38436d14bb2ffd3fb403e411531913433425cae61a6e7}
+REPOSITORY_SHA256=${PONDHOUSE_REPOSITORY_SHA256:-e1f9171b683b048002f5a0aa1a27235458b82adec36cf1868a3ad98223578b3a}
 SIGNING_FINGERPRINT=${PONDHOUSE_SIGNING_FINGERPRINT:-2E4DE2E86D2D5D4EF994B0A849EE396C83FEEC69}
 SNAPSHOT_URL=${PONDHOUSE_SNAPSHOT_URL:-https://packages.pondhouse-data.com/snapshots/$PACKAGE_VERSION/x86_64}
 STABLE_URL=${PONDHOUSE_STABLE_URL:-https://packages.pondhouse-data.com/stable/\$arch}
@@ -613,8 +613,6 @@ export PATH="$HOME/.local/bin:$HOME/scripts:$PATH"
 
 [[ -r /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.plugin.zsh ]] &&
   source /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.plugin.zsh
-[[ -r /usr/share/zsh/plugins/zsh-autocomplete/zsh-autocomplete.plugin.zsh ]] &&
-  source /usr/share/zsh/plugins/zsh-autocomplete/zsh-autocomplete.plugin.zsh
 [[ -r /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.plugin.zsh ]] &&
   source /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.plugin.zsh
 
