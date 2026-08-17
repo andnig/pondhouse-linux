@@ -21,6 +21,7 @@ make_fixture() {
   fixture="$TMPDIR/$name"
   mkdir -p "$fixture/home/.local/share/omarchy/config/agents/.agents/skills" \
     "$fixture/home/.local/share/omarchy/config/opencode" \
+    "$fixture/home/.local/share/omarchy/config/nvim" \
     "$fixture/home/.local/share/omarchy/config/nested" \
     "$fixture/home/.config" "$fixture/home/.claude" "$fixture/bin" \
     "$fixture/packages" "$fixture/quattro-root" "$fixture/signing" "$fixture/pacman-gnupg" \
@@ -35,10 +36,12 @@ make_fixture() {
   printf 'set -g history-limit 1000000\n' >"$fixture/share/tmux/tmux.conf"
 
   printf 'legacy\n' >"$fixture/home/.local/share/omarchy/config/nested/value"
+  printf 'personal Neovim config\n' >"$fixture/home/.local/share/omarchy/config/nvim/personal.lua"
   printf 'ignored\n' >"$fixture/home/.local/share/omarchy/config/opencode/secret.json"
   ln -s "$fixture/home/.local/share/omarchy/config/nested/value" \
     "$fixture/home/.local/share/omarchy/config/agents/.agents/nested-legacy"
   ln -s "$fixture/home/.local/share/omarchy/config/nested" "$fixture/home/.config/nested"
+  ln -s "$fixture/home/.local/share/omarchy/config/nvim" "$fixture/home/.config/nvim"
   ln -s "$fixture/home/.local/share/omarchy/config/agents/.agents" "$fixture/home/.agents"
   ln -s "$fixture/home/.local/share/omarchy/config/nested/value" "$fixture/home/.claude/untouched"
 
@@ -237,6 +240,9 @@ EOF
 #!/bin/bash
 echo $command >>"\$HOME/reconciliation-actions"
 echo reconciliation >>"\$HOME/phase-actions"
+if [[ $command == omarchy-pondhouse-reconcile-user ]]; then
+  printf '%s\n' "\${PONDHOUSE_LEGACY_CHECKOUT:-}" >"\$HOME/nvim-legacy-checkout"
+fi
 EOF
   done
   chmod 755 "$fixture/bin"/*
@@ -293,10 +299,10 @@ expect_preconversion_failure() {
   pass "$label leaves upstream invocation count at zero"
 }
 
-grep -Fq 'PACKAGE_VERSION=${PONDHOUSE_PACKAGE_VERSION:-2026.08.15-23}' "$COMMAND" || fail "production package release is pinned"; pass "production package release is pinned"
-grep -Fq 'PACKAGE_SHA256=${PONDHOUSE_PACKAGE_SHA256:-a4d25dad9f4b72069c4e0997240858c8140e15bfb0e928e1d6d9e21af317921c}' "$COMMAND" || fail "production package checksum is pinned"; pass "production package checksum is pinned"
+grep -Fq 'PACKAGE_VERSION=${PONDHOUSE_PACKAGE_VERSION:-2026.08.15-25}' "$COMMAND" || fail "production package release is pinned"; pass "production package release is pinned"
+grep -Fq 'PACKAGE_SHA256=${PONDHOUSE_PACKAGE_SHA256:-aecdac62894ff26053042eac2ac30a7c218afd57b378e05b4bba1e326b78ab62}' "$COMMAND" || fail "production package checksum is pinned"; pass "production package checksum is pinned"
 grep -Fq 'KEYRING_SHA256=${PONDHOUSE_KEYRING_SHA256:-4d0aaad00d9d15a89f4980c3ff71a4c7897d7b2694797af9c1a59b32fcc9141f}' "$COMMAND" || fail "production keyring checksum is pinned"; pass "production keyring checksum is pinned"
-grep -Fq 'REPOSITORY_SHA256=${PONDHOUSE_REPOSITORY_SHA256:-3a6edab46af53eb0d785403e8622a78567e3acb38533d4c5f4be7dc250d55d36}' "$COMMAND" || fail "production repository checksum is pinned"; pass "production repository checksum is pinned"
+grep -Fq 'REPOSITORY_SHA256=${PONDHOUSE_REPOSITORY_SHA256:-892469509f8056a63f2cc0c2f7a1160dcf4c91b5babe9d709db201dfe3a2c603}' "$COMMAND" || fail "production repository checksum is pinned"; pass "production repository checksum is pinned"
 
 fixture=$(make_fixture dry-run)
 truncate -s 2M "$fixture/home/.claude/agent-state"
@@ -319,9 +325,11 @@ run_migration "$fixture" --yes >/dev/null
 run_dir=$(readlink -f "$fixture/state/latest")
 backup_dir=$(<"$run_dir/inventory/backup-path")
 [[ -f $backup_dir/legacy-checkout/config/opencode/secret.json ]] || fail "migration keeps a private data backup"; pass "migration keeps a private data backup"
+[[ -f $backup_dir/legacy-checkout/config/nvim/personal.lua ]] || fail "migration keeps the Neovim config backup"; pass "migration keeps the Neovim config backup"
 [[ -f $backup_dir/inventory/legacy-status.txt ]] || fail "migration permanently backs up evidence"; pass "migration permanently backs up evidence"
 [[ ! -L $fixture/home/.agents ]] || fail "migration materializes selected top-level link"; pass "migration materializes selected top-level link"
 [[ ! -L $fixture/home/.config/nested ]] || fail "migration materializes selected config link"; pass "migration materializes selected config link"
+[[ ! -L $fixture/home/.config/nvim ]] || fail "migration materializes Neovim before reconciliation"; pass "migration materializes Neovim before reconciliation"
 [[ ! -L $fixture/home/.agents/nested-legacy ]] || fail "migration materializes nested legacy link"; pass "migration materializes nested legacy link"
 [[ -L $fixture/home/.claude/untouched ]] || fail "migration excludes Claude"; pass "migration excludes Claude"
 [[ ! -e $fixture/home/.claude/changed && ! -e $fixture/home/.codex && ! -e $fixture/home/.pi ]] || fail "migration restores excluded agent state"; pass "migration restores excluded agent state"
@@ -335,6 +343,7 @@ reconciliation_line=$(grep -n '^reconciliation$' "$fixture/home/phase-actions" |
 [[ -f $run_dir/phases/pondhouse-trust-ready ]] || fail "migration records trust readiness"; pass "migration records trust readiness"
 grep -Fqx 'LocalFileSigLevel = Optional' "$fixture/pacman.conf" || fail "migration preserves global pacman policy"; pass "migration preserves global pacman policy"
 (( $(wc -l <"$fixture/home/reconciliation-actions") == 3 )) || fail "migration runs package-owned reconcilers"; pass "migration runs package-owned reconcilers"
+[[ $(<"$fixture/home/nvim-legacy-checkout") == "$backup_dir/legacy-checkout" ]] || fail "migration provides Neovim reset context"; pass "migration provides Neovim reset context"
 [[ -f $run_dir/phases/complete ]] || fail "migration records completion"; pass "migration records completion"
 [[ ! -e $fixture/home/rebooted ]] || fail "migration suppresses upstream reboot"; pass "migration suppresses upstream reboot"
 grep -Fqx 'use --global node@22 npm:pnpm' "$fixture/home/mise-actions" || fail "migration configures Node and pnpm through Mise"; pass "migration configures Node and pnpm through Mise"
