@@ -303,6 +303,7 @@ grep -Fq 'PACKAGE_VERSION=${PONDHOUSE_PACKAGE_VERSION:-2026.08.15-25}' "$COMMAND
 grep -Fq 'PACKAGE_SHA256=${PONDHOUSE_PACKAGE_SHA256:-aecdac62894ff26053042eac2ac30a7c218afd57b378e05b4bba1e326b78ab62}' "$COMMAND" || fail "production package checksum is pinned"; pass "production package checksum is pinned"
 grep -Fq 'KEYRING_SHA256=${PONDHOUSE_KEYRING_SHA256:-4d0aaad00d9d15a89f4980c3ff71a4c7897d7b2694797af9c1a59b32fcc9141f}' "$COMMAND" || fail "production keyring checksum is pinned"; pass "production keyring checksum is pinned"
 grep -Fq 'REPOSITORY_SHA256=${PONDHOUSE_REPOSITORY_SHA256:-892469509f8056a63f2cc0c2f7a1160dcf4c91b5babe9d709db201dfe3a2c603}' "$COMMAND" || fail "production repository checksum is pinned"; pass "production repository checksum is pinned"
+if grep -Fq 'configure_employee_zshrc' "$COMMAND"; then fail "migration duplicates package-owned shell policy"; fi; pass "migration delegates shell policy to package reconcilers"
 
 fixture=$(make_fixture dry-run)
 truncate -s 2M "$fixture/home/.claude/agent-state"
@@ -347,16 +348,9 @@ grep -Fqx 'LocalFileSigLevel = Optional' "$fixture/pacman.conf" || fail "migrati
 [[ -f $run_dir/phases/complete ]] || fail "migration records completion"; pass "migration records completion"
 [[ ! -e $fixture/home/rebooted ]] || fail "migration suppresses upstream reboot"; pass "migration suppresses upstream reboot"
 grep -Fqx 'use --global node@22 npm:pnpm' "$fixture/home/mise-actions" || fail "migration configures Node and pnpm through Mise"; pass "migration configures Node and pnpm through Mise"
-[[ -f $fixture/home/.zshrc && ! -L $fixture/home/.zshrc ]] || fail "migration installs employee-owned Zsh config"; pass "migration installs employee-owned Zsh config"
 [[ -f $fixture/home/.config/tmux/tmux.conf && ! -L $fixture/home/.config/tmux/tmux.conf ]] || fail "migration installs employee-owned tmux config"; pass "migration installs employee-owned tmux config"
 cmp -s "$fixture/share/tmux/tmux.conf" "$fixture/home/.config/tmux/tmux.conf" || fail "migration copies packaged tmux config"; pass "migration copies packaged tmux config"
 [[ -f $fixture/home/.config/tmux/local.conf ]] || fail "migration retains tmux extension point"; pass "migration retains tmux extension point"
-grep -Fqx 'setopt APPEND_HISTORY' "$fixture/home/.zshrc" || fail "migration copies Pondhouse Zsh default"; pass "migration copies Pondhouse Zsh default"
-grep -Fqx '  herdr' "$fixture/home/.zshrc" || fail "migration preserves shell after Herdr detach"; pass "migration preserves shell after Herdr detach"
-grep -Fq '_pondhouse_herdr_rename_tab_from_pwd' "$fixture/home/.zshrc" || fail "migration configures numbered Herdr directory tabs"; pass "migration configures numbered Herdr directory tabs"
-grep -Fq '${#tab_name} > 24' "$fixture/home/.zshrc" || fail "migration bounds Herdr directory tab names"; pass "migration bounds Herdr directory tab names"
-if grep -Fq 'zsh-autocomplete.plugin.zsh' "$fixture/home/.zshrc"; then fail "migration enables zsh-autocomplete"; fi; pass "migration omits zsh-autocomplete"
-grep -Fq 'add-zsh-hook zshexit _pondhouse_herdr_renumber_tabs_on_exit' "$fixture/home/.zshrc" || fail "migration renumbers tabs after shell exit"; pass "migration renumbers tabs after shell exit"
 for script in \
   herdr-close-tab.sh herdr-kill-pane.sh herdr-move-tab.sh \
   herdr-renumber-after-pane-exit.sh herdr-renumber-tabs.sh; do

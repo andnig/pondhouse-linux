@@ -610,64 +610,6 @@ configure_employee_tmux() {
   mark_phase employee-tmux
 }
 
-configure_employee_zshrc() {
-  phase_done employee-zshrc && return 0
-  cat >"$HOME/.zshrc.pondhouse-new" <<'EOF'
-setopt APPEND_HISTORY
-setopt HIST_IGNORE_DUPS
-setopt HIST_IGNORE_SPACE
-
-HISTFILE=~/.zsh_history
-HISTSIZE=32768
-SAVEHIST=32768
-
-export PATH="$HOME/.local/bin:$HOME/scripts:$PATH"
-
-[[ -r /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.plugin.zsh ]] &&
-  source /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.plugin.zsh
-[[ -r /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.plugin.zsh ]] &&
-  source /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.plugin.zsh
-
-command -v mise >/dev/null 2>&1 && eval "$(mise activate zsh)"
-command -v starship >/dev/null 2>&1 && eval "$(starship init zsh)"
-command -v zoxide >/dev/null 2>&1 && eval "$(zoxide init zsh)"
-command -v fzf >/dev/null 2>&1 && source <(fzf --zsh)
-
-autoload -Uz add-zsh-hook
-_pondhouse_herdr_rename_tab_from_pwd() {
-  [[ ${HERDR_ENV:-0} == "1" && -n ${HERDR_WORKSPACE_ID:-} && -n ${HERDR_TAB_ID:-} ]] || return 0
-
-  local tab_name=${PWD:t}
-  local tab_number
-  [[ -n $tab_name ]] || tab_name=/
-  (( ${#tab_name} > 24 )) && tab_name="${tab_name[1,21]}..."
-  tab_number=$(command herdr tab list --workspace "$HERDR_WORKSPACE_ID" 2>/dev/null |
-    jq -r --arg tab_id "$HERDR_TAB_ID" \
-      '.result.tabs | to_entries[] | select(.value.tab_id == $tab_id) | .key + 1' 2>/dev/null)
-  [[ $tab_number == <-> ]] || return 0
-  command herdr tab rename "$HERDR_TAB_ID" "$tab_number: $tab_name" >/dev/null 2>&1
-}
-add-zsh-hook chpwd _pondhouse_herdr_rename_tab_from_pwd
-_pondhouse_herdr_rename_tab_from_pwd
-
-_pondhouse_herdr_renumber_tabs_on_exit() {
-  [[ ${HERDR_ENV:-0} == "1" && -n ${HERDR_PANE_ID:-} ]] || return 0
-  "$HOME/scripts/herdr-renumber-after-pane-exit.sh" "$HERDR_PANE_ID" >/dev/null 2>&1
-}
-add-zsh-hook zshexit _pondhouse_herdr_renumber_tabs_on_exit
-
-if [[ -o interactive && -z ${SSH_CONNECTION:-} && -z ${SSH_TTY:-} && \
-  -z ${TMUX:-} && ${HERDR_ENV:-0} != "1" && -z ${HERDR_SOCKET_PATH:-} ]] && \
-  command -v herdr >/dev/null 2>&1; then
-  herdr
-fi
-EOF
-  chmod 644 "$HOME/.zshrc.pondhouse-new"
-  mv -Tf "$HOME/.zshrc.pondhouse-new" "$HOME/.zshrc"
-  rm -f "$HOME/.config/zsh/local.zsh"
-  mark_phase employee-zshrc
-}
-
 restore_defaults() {
   local browser editor
 
@@ -767,7 +709,6 @@ phase_done reconciliation || reconcile_pondhouse
 configure_mise_tools
 configure_herdr_tab_scripts
 configure_employee_tmux
-configure_employee_zshrc
 phase_done defaults-restored || restore_defaults
 mark_phase complete
 trap - EXIT
