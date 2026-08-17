@@ -570,6 +570,55 @@ reconcile_pondhouse() {
   mark_phase reconciliation
 }
 
+configure_mise_tools() {
+  phase_done mise-tools && return 0
+  command -v mise >/dev/null 2>&1 || {
+    echo "Mise is missing from the Omarchy installation" >&2
+    return 1
+  }
+  mise use --global node@22 npm:pnpm
+  mise which node >/dev/null
+  mise which pnpm >/dev/null
+  mark_phase mise-tools
+}
+
+configure_employee_zshrc() {
+  phase_done employee-zshrc && return 0
+  cat >"$HOME/.zshrc.pondhouse-new" <<'EOF'
+setopt APPEND_HISTORY
+setopt HIST_IGNORE_DUPS
+setopt HIST_IGNORE_SPACE
+
+HISTFILE=~/.zsh_history
+HISTSIZE=32768
+SAVEHIST=32768
+
+export PATH="$HOME/.local/bin:$HOME/scripts:$PATH"
+
+[[ -r /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.plugin.zsh ]] &&
+  source /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.plugin.zsh
+[[ -r /usr/share/zsh/plugins/zsh-autocomplete/zsh-autocomplete.plugin.zsh ]] &&
+  source /usr/share/zsh/plugins/zsh-autocomplete/zsh-autocomplete.plugin.zsh
+[[ -r /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.plugin.zsh ]] &&
+  source /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.plugin.zsh
+
+command -v mise >/dev/null 2>&1 && eval "$(mise activate zsh)"
+command -v starship >/dev/null 2>&1 && eval "$(starship init zsh)"
+command -v zoxide >/dev/null 2>&1 && eval "$(zoxide init zsh)"
+command -v fzf >/dev/null 2>&1 && source <(fzf --zsh)
+
+if [[ -o interactive && -z ${SSH_CONNECTION:-} && -z ${SSH_TTY:-} && \
+  -z ${TMUX:-} && ${HERDR_ENV:-0} != "1" && -z ${HERDR_SOCKET_PATH:-} ]] && \
+  command -v herdr >/dev/null 2>&1; then
+  exec herdr
+fi
+EOF
+  chmod 644 "$HOME/.zshrc.pondhouse-new"
+  mv -Tf "$HOME/.zshrc.pondhouse-new" "$HOME/.zshrc"
+  rm -f "$HOME/.config/zsh/local.zsh"
+  mark_phase employee-zshrc
+}
+
 restore_defaults() {
   local browser editor
 
@@ -666,6 +715,8 @@ skip_fresh_sunshine_firewall
 phase_done package-install || install_pondhouse_release
 sync_pondhouse_repository
 phase_done reconciliation || reconcile_pondhouse
+configure_mise_tools
+configure_employee_zshrc
 phase_done defaults-restored || restore_defaults
 mark_phase complete
 trap - EXIT

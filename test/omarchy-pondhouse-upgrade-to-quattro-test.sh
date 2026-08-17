@@ -161,6 +161,25 @@ EOF
 echo browser.desktop
 EOF
 
+  cat >"$fixture/bin/mise" <<'EOF'
+#!/bin/bash
+echo "$*" >>"$HOME/mise-actions"
+case "${1:-}" in
+  use|which) exit 0 ;;
+  *) exit 1 ;;
+esac
+EOF
+
+  cat >"$fixture/bin/gum" <<'EOF'
+#!/bin/bash
+exit 0
+EOF
+
+  cat >"$fixture/bin/pgrep" <<'EOF'
+#!/bin/bash
+exit 1
+EOF
+
   cat >"$fixture/bin/sudo" <<'EOF'
 #!/bin/bash
 set -euo pipefail
@@ -310,6 +329,9 @@ grep -Fqx 'LocalFileSigLevel = Optional' "$fixture/pacman.conf" || fail "migrati
 (( $(wc -l <"$fixture/home/reconciliation-actions") == 3 )) || fail "migration runs package-owned reconcilers"; pass "migration runs package-owned reconcilers"
 [[ -f $run_dir/phases/complete ]] || fail "migration records completion"; pass "migration records completion"
 [[ ! -e $fixture/home/rebooted ]] || fail "migration suppresses upstream reboot"; pass "migration suppresses upstream reboot"
+grep -Fqx 'use --global node@22 npm:pnpm' "$fixture/home/mise-actions" || fail "migration configures Node and pnpm through Mise"; pass "migration configures Node and pnpm through Mise"
+[[ -f $fixture/home/.zshrc && ! -L $fixture/home/.zshrc ]] || fail "migration installs employee-owned Zsh config"; pass "migration installs employee-owned Zsh config"
+grep -Fqx 'setopt APPEND_HISTORY' "$fixture/home/.zshrc" || fail "migration copies Pondhouse Zsh default"; pass "migration copies Pondhouse Zsh default"
 
 fixture=$(make_fixture downloaded-upgrader)
 TEST_DOWNLOAD_UPGRADER=1 run_migration "$fixture" --yes >/dev/null
