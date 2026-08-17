@@ -26,7 +26,9 @@ make_fixture() {
     "$fixture/packages" "$fixture/quattro-root" "$fixture/signing" "$fixture/pacman-gnupg" \
     "$fixture/pacman-keyrings" "$fixture/share/scripts"
   chmod 700 "$fixture/signing" "$fixture/pacman-gnupg"
-  for script in herdr-close-tab.sh herdr-move-tab.sh herdr-renumber-tabs.sh; do
+  for script in \
+    herdr-close-tab.sh herdr-kill-pane.sh herdr-move-tab.sh \
+    herdr-renumber-after-pane-exit.sh herdr-renumber-tabs.sh; do
     printf '#!/bin/bash\nprintf %s\\n %q\n' "$script" "$script" >"$fixture/share/scripts/$script"
     chmod 755 "$fixture/share/scripts/$script"
   done
@@ -290,10 +292,10 @@ expect_preconversion_failure() {
   pass "$label leaves upstream invocation count at zero"
 }
 
-grep -Fq 'PACKAGE_VERSION=${PONDHOUSE_PACKAGE_VERSION:-2026.08.15-19}' "$COMMAND" || fail "production package release is pinned"; pass "production package release is pinned"
-grep -Fq 'PACKAGE_SHA256=${PONDHOUSE_PACKAGE_SHA256:-9b3c007609400dd890363bfc44a4a0e65e6f02d9bc0a4968c03351fbd53fdacb}' "$COMMAND" || fail "production package checksum is pinned"; pass "production package checksum is pinned"
+grep -Fq 'PACKAGE_VERSION=${PONDHOUSE_PACKAGE_VERSION:-2026.08.15-20}' "$COMMAND" || fail "production package release is pinned"; pass "production package release is pinned"
+grep -Fq 'PACKAGE_SHA256=${PONDHOUSE_PACKAGE_SHA256:-b4885e6691d00568389bdfba34985385c7e300c139e6cef8cbf2eb732ebe7712}' "$COMMAND" || fail "production package checksum is pinned"; pass "production package checksum is pinned"
 grep -Fq 'KEYRING_SHA256=${PONDHOUSE_KEYRING_SHA256:-4d0aaad00d9d15a89f4980c3ff71a4c7897d7b2694797af9c1a59b32fcc9141f}' "$COMMAND" || fail "production keyring checksum is pinned"; pass "production keyring checksum is pinned"
-grep -Fq 'REPOSITORY_SHA256=${PONDHOUSE_REPOSITORY_SHA256:-aa97b57b6f90c2c3f5c803e0dc1424f2774fe2d77bb0c7c77c55178eed3da3f6}' "$COMMAND" || fail "production repository checksum is pinned"; pass "production repository checksum is pinned"
+grep -Fq 'REPOSITORY_SHA256=${PONDHOUSE_REPOSITORY_SHA256:-b53eb9696a0230f41f773a2df00641cbd995f5b5b659c1e5aed9e2656af64487}' "$COMMAND" || fail "production repository checksum is pinned"; pass "production repository checksum is pinned"
 
 fixture=$(make_fixture dry-run)
 truncate -s 2M "$fixture/home/.claude/agent-state"
@@ -340,7 +342,10 @@ grep -Fqx 'setopt APPEND_HISTORY' "$fixture/home/.zshrc" || fail "migration copi
 grep -Fqx '  herdr' "$fixture/home/.zshrc" || fail "migration preserves shell after Herdr detach"; pass "migration preserves shell after Herdr detach"
 grep -Fq '_pondhouse_herdr_rename_tab_from_pwd' "$fixture/home/.zshrc" || fail "migration configures numbered Herdr directory tabs"; pass "migration configures numbered Herdr directory tabs"
 grep -Fq '${#tab_name} > 24' "$fixture/home/.zshrc" || fail "migration bounds Herdr directory tab names"; pass "migration bounds Herdr directory tab names"
-for script in herdr-close-tab.sh herdr-move-tab.sh herdr-renumber-tabs.sh; do
+grep -Fq 'add-zsh-hook zshexit _pondhouse_herdr_renumber_tabs_on_exit' "$fixture/home/.zshrc" || fail "migration renumbers tabs after shell exit"; pass "migration renumbers tabs after shell exit"
+for script in \
+  herdr-close-tab.sh herdr-kill-pane.sh herdr-move-tab.sh \
+  herdr-renumber-after-pane-exit.sh herdr-renumber-tabs.sh; do
   cmp -s "$fixture/share/scripts/$script" "$fixture/home/scripts/$script" || \
     fail "migration installs $script"
   [[ -x $fixture/home/scripts/$script ]] || fail "migration makes $script executable"

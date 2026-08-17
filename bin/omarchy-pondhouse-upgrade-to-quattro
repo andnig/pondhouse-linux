@@ -11,11 +11,11 @@ umask 077
 
 UPGRADER_URL=${PONDHOUSE_UPGRADER_URL:-https://raw.githubusercontent.com/basecamp/omarchy/f0020448ca87329199de7cb12f2015ebc4a3e5e7/bin/omarchy-upgrade-to-quattro}
 UPGRADER_SHA256=${PONDHOUSE_UPGRADER_SHA256:-fd5f311313c87bf25429220a3c4e65da755ee0c2e78648a20e30e86133495fd4}
-PACKAGE_VERSION=${PONDHOUSE_PACKAGE_VERSION:-2026.08.15-19}
+PACKAGE_VERSION=${PONDHOUSE_PACKAGE_VERSION:-2026.08.15-20}
 KEYRING_VERSION=${PONDHOUSE_KEYRING_VERSION:-2026.08.15-1}
 KEYRING_SHA256=${PONDHOUSE_KEYRING_SHA256:-4d0aaad00d9d15a89f4980c3ff71a4c7897d7b2694797af9c1a59b32fcc9141f}
-PACKAGE_SHA256=${PONDHOUSE_PACKAGE_SHA256:-9b3c007609400dd890363bfc44a4a0e65e6f02d9bc0a4968c03351fbd53fdacb}
-REPOSITORY_SHA256=${PONDHOUSE_REPOSITORY_SHA256:-aa97b57b6f90c2c3f5c803e0dc1424f2774fe2d77bb0c7c77c55178eed3da3f6}
+PACKAGE_SHA256=${PONDHOUSE_PACKAGE_SHA256:-b4885e6691d00568389bdfba34985385c7e300c139e6cef8cbf2eb732ebe7712}
+REPOSITORY_SHA256=${PONDHOUSE_REPOSITORY_SHA256:-b53eb9696a0230f41f773a2df00641cbd995f5b5b659c1e5aed9e2656af64487}
 SIGNING_FINGERPRINT=${PONDHOUSE_SIGNING_FINGERPRINT:-2E4DE2E86D2D5D4EF994B0A849EE396C83FEEC69}
 SNAPSHOT_URL=${PONDHOUSE_SNAPSHOT_URL:-https://packages.pondhouse-data.com/snapshots/$PACKAGE_VERSION/x86_64}
 STABLE_URL=${PONDHOUSE_STABLE_URL:-https://packages.pondhouse-data.com/stable/\$arch}
@@ -587,7 +587,12 @@ configure_herdr_tab_scripts() {
   phase_done herdr-tab-scripts && return 0
   local name
   mkdir -p "$HOME/scripts"
-  for name in herdr-close-tab.sh herdr-move-tab.sh herdr-renumber-tabs.sh; do
+  for name in \
+    herdr-close-tab.sh \
+    herdr-kill-pane.sh \
+    herdr-move-tab.sh \
+    herdr-renumber-after-pane-exit.sh \
+    herdr-renumber-tabs.sh; do
     install -m755 "$PONDHOUSE_SHARE_DIR/scripts/$name" "$HOME/scripts/$name"
   done
   mark_phase herdr-tab-scripts
@@ -634,6 +639,12 @@ _pondhouse_herdr_rename_tab_from_pwd() {
 }
 add-zsh-hook chpwd _pondhouse_herdr_rename_tab_from_pwd
 _pondhouse_herdr_rename_tab_from_pwd
+
+_pondhouse_herdr_renumber_tabs_on_exit() {
+  [[ ${HERDR_ENV:-0} == "1" && -n ${HERDR_PANE_ID:-} ]] || return 0
+  "$HOME/scripts/herdr-renumber-after-pane-exit.sh" "$HERDR_PANE_ID" >/dev/null 2>&1
+}
+add-zsh-hook zshexit _pondhouse_herdr_renumber_tabs_on_exit
 
 if [[ -o interactive && -z ${SSH_CONNECTION:-} && -z ${SSH_TTY:-} && \
   -z ${TMUX:-} && ${HERDR_ENV:-0} != "1" && -z ${HERDR_SOCKET_PATH:-} ]] && \
