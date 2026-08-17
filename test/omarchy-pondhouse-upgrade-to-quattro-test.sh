@@ -299,10 +299,10 @@ expect_preconversion_failure() {
   pass "$label leaves upstream invocation count at zero"
 }
 
-grep -Fq 'PACKAGE_VERSION=${PONDHOUSE_PACKAGE_VERSION:-2026.08.15-25}' "$COMMAND" || fail "production package release is pinned"; pass "production package release is pinned"
-grep -Fq 'PACKAGE_SHA256=${PONDHOUSE_PACKAGE_SHA256:-aecdac62894ff26053042eac2ac30a7c218afd57b378e05b4bba1e326b78ab62}' "$COMMAND" || fail "production package checksum is pinned"; pass "production package checksum is pinned"
-grep -Fq 'KEYRING_SHA256=${PONDHOUSE_KEYRING_SHA256:-4d0aaad00d9d15a89f4980c3ff71a4c7897d7b2694797af9c1a59b32fcc9141f}' "$COMMAND" || fail "production keyring checksum is pinned"; pass "production keyring checksum is pinned"
-grep -Fq 'REPOSITORY_SHA256=${PONDHOUSE_REPOSITORY_SHA256:-892469509f8056a63f2cc0c2f7a1160dcf4c91b5babe9d709db201dfe3a2c603}' "$COMMAND" || fail "production repository checksum is pinned"; pass "production repository checksum is pinned"
+grep -Fq 'PACKAGE_VERSION=${PONDHOUSE_PACKAGE_VERSION:-2026.08.15-29}' "$COMMAND" || fail "production package release is pinned"; pass "production package release is pinned"
+grep -Fq 'PACKAGE_SHA256=${PONDHOUSE_PACKAGE_SHA256:-66561287e7a8988216dac83fe836db07be75a643f8ac0fbc34ea79011190c86d}' "$COMMAND" || fail "production package checksum is pinned"; pass "production package checksum is pinned"
+grep -Fq 'KEYRING_SHA256=${PONDHOUSE_KEYRING_SHA256:-d4e41fa5bc79de1ede3fd27202558d722d4ce433b98a6110e0736db2b7ada257}' "$COMMAND" || fail "production keyring checksum is pinned"; pass "production keyring checksum is pinned"
+grep -Fq 'REPOSITORY_SHA256=${PONDHOUSE_REPOSITORY_SHA256:-3c3a14bfef30b20031a8f70fb9e188501e869c59433fdd630b3fb4dc7b2cf9ea}' "$COMMAND" || fail "production repository checksum is pinned"; pass "production repository checksum is pinned"
 if grep -Fq 'configure_employee_zshrc' "$COMMAND"; then fail "migration duplicates package-owned shell policy"; fi; pass "migration delegates shell policy to package reconcilers"
 
 fixture=$(make_fixture dry-run)
