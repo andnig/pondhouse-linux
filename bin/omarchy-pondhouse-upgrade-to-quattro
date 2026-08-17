@@ -11,11 +11,11 @@ umask 077
 
 UPGRADER_URL=${PONDHOUSE_UPGRADER_URL:-https://raw.githubusercontent.com/basecamp/omarchy/f0020448ca87329199de7cb12f2015ebc4a3e5e7/bin/omarchy-upgrade-to-quattro}
 UPGRADER_SHA256=${PONDHOUSE_UPGRADER_SHA256:-fd5f311313c87bf25429220a3c4e65da755ee0c2e78648a20e30e86133495fd4}
-PACKAGE_VERSION=${PONDHOUSE_PACKAGE_VERSION:-2026.08.15-22}
+PACKAGE_VERSION=${PONDHOUSE_PACKAGE_VERSION:-2026.08.15-23}
 KEYRING_VERSION=${PONDHOUSE_KEYRING_VERSION:-2026.08.15-1}
 KEYRING_SHA256=${PONDHOUSE_KEYRING_SHA256:-4d0aaad00d9d15a89f4980c3ff71a4c7897d7b2694797af9c1a59b32fcc9141f}
-PACKAGE_SHA256=${PONDHOUSE_PACKAGE_SHA256:-d5708cca7ac482c5e9b38436d14bb2ffd3fb403e411531913433425cae61a6e7}
-REPOSITORY_SHA256=${PONDHOUSE_REPOSITORY_SHA256:-e1f9171b683b048002f5a0aa1a27235458b82adec36cf1868a3ad98223578b3a}
+PACKAGE_SHA256=${PONDHOUSE_PACKAGE_SHA256:-a4d25dad9f4b72069c4e0997240858c8140e15bfb0e928e1d6d9e21af317921c}
+REPOSITORY_SHA256=${PONDHOUSE_REPOSITORY_SHA256:-3a6edab46af53eb0d785403e8622a78567e3acb38533d4c5f4be7dc250d55d36}
 SIGNING_FINGERPRINT=${PONDHOUSE_SIGNING_FINGERPRINT:-2E4DE2E86D2D5D4EF994B0A849EE396C83FEEC69}
 SNAPSHOT_URL=${PONDHOUSE_SNAPSHOT_URL:-https://packages.pondhouse-data.com/snapshots/$PACKAGE_VERSION/x86_64}
 STABLE_URL=${PONDHOUSE_STABLE_URL:-https://packages.pondhouse-data.com/stable/\$arch}
@@ -598,6 +598,18 @@ configure_herdr_tab_scripts() {
   mark_phase herdr-tab-scripts
 }
 
+configure_employee_tmux() {
+  phase_done employee-tmux && return 0
+  mkdir -p "$HOME/.config/tmux"
+  install -m644 "$PONDHOUSE_SHARE_DIR/tmux/tmux.conf" \
+    "$HOME/.config/tmux/tmux.conf.pondhouse-new"
+  mv -Tf "$HOME/.config/tmux/tmux.conf.pondhouse-new" \
+    "$HOME/.config/tmux/tmux.conf"
+  [[ -e $HOME/.config/tmux/local.conf || -L $HOME/.config/tmux/local.conf ]] || \
+    install -m644 /dev/null "$HOME/.config/tmux/local.conf"
+  mark_phase employee-tmux
+}
+
 configure_employee_zshrc() {
   phase_done employee-zshrc && return 0
   cat >"$HOME/.zshrc.pondhouse-new" <<'EOF'
@@ -754,6 +766,7 @@ sync_pondhouse_repository
 phase_done reconciliation || reconcile_pondhouse
 configure_mise_tools
 configure_herdr_tab_scripts
+configure_employee_tmux
 configure_employee_zshrc
 phase_done defaults-restored || restore_defaults
 mark_phase complete
