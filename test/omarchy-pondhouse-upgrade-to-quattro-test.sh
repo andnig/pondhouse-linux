@@ -299,7 +299,7 @@ expect_preconversion_failure() {
   pass "$label leaves upstream invocation count at zero"
 }
 
-grep -Fq 'PACKAGE_VERSION=${PONDHOUSE_PACKAGE_VERSION:-2026.08.15-29}' "$COMMAND" || fail "production package release is pinned"; pass "production package release is pinned"
+grep -Fq 'PACKAGE_VERSION=${PONDHOUSE_PACKAGE_VERSION:-2026.08.15-34}' "$COMMAND" || fail "production package release is pinned"; pass "production package release is pinned"
 grep -Fq 'PACKAGE_SHA256=${PONDHOUSE_PACKAGE_SHA256:-66561287e7a8988216dac83fe836db07be75a643f8ac0fbc34ea79011190c86d}' "$COMMAND" || fail "production package checksum is pinned"; pass "production package checksum is pinned"
 grep -Fq 'KEYRING_SHA256=${PONDHOUSE_KEYRING_SHA256:-d4e41fa5bc79de1ede3fd27202558d722d4ce433b98a6110e0736db2b7ada257}' "$COMMAND" || fail "production keyring checksum is pinned"; pass "production keyring checksum is pinned"
 grep -Fq 'REPOSITORY_SHA256=${PONDHOUSE_REPOSITORY_SHA256:-3c3a14bfef30b20031a8f70fb9e188501e869c59433fdd630b3fb4dc7b2cf9ea}' "$COMMAND" || fail "production repository checksum is pinned"; pass "production repository checksum is pinned"
@@ -322,12 +322,18 @@ if gpg --batch --homedir "$fixture/pacman-gnupg" --list-keys "$(<"$fixture/finge
   fail "isolated pacman trust starts without Pondhouse key"
 fi
 pass "isolated pacman trust starts without Pondhouse key"
-run_migration "$fixture" --yes >/dev/null
+complete_output=$(run_migration "$fixture" --yes)
 run_dir=$(readlink -f "$fixture/state/latest")
 backup_dir=$(<"$run_dir/inventory/backup-path")
 [[ -f $backup_dir/legacy-checkout/config/opencode/secret.json ]] || fail "migration keeps a private data backup"; pass "migration keeps a private data backup"
 [[ -f $backup_dir/legacy-checkout/config/nvim/personal.lua ]] || fail "migration keeps the Neovim config backup"; pass "migration keeps the Neovim config backup"
 [[ -f $backup_dir/inventory/legacy-status.txt ]] || fail "migration permanently backs up evidence"; pass "migration permanently backs up evidence"
+grep -Fq 'Hyprland now uses Lua.' <<<"$complete_output" || fail "migration omits Hyprland transition guidance"; pass "migration explains Hyprland transition"
+grep -Fq "$backup_dir/legacy-checkout/config/hypr" <<<"$complete_output" || fail "migration guidance omits legacy Hyprland backup"; pass "migration guidance references Hyprland backup"
+grep -Fq 'Help me selectively migrate my monitor' <<<"$complete_output" || fail "migration omits AI prompt example"; pass "migration provides AI prompt example"
+grep -Fq 'bin/start-teams.sh and applications directory' <<<"$complete_output" || fail "migration prompt omits Teams backup sources"; pass "migration prompt references Teams backup sources"
+grep -Fq 'employee-owned location and invoke it from bindings.lua' <<<"$complete_output" || fail "migration prompt embeds Teams script in bindings"; pass "migration prompt keeps Teams script employee-owned"
+grep -Fq 'do not edit hypr/pondhouse.lua' <<<"$complete_output" || fail "migration prompt does not protect company module"; pass "migration prompt protects company module"
 [[ ! -L $fixture/home/.agents ]] || fail "migration materializes selected top-level link"; pass "migration materializes selected top-level link"
 [[ ! -L $fixture/home/.config/nested ]] || fail "migration materializes selected config link"; pass "migration materializes selected config link"
 [[ ! -L $fixture/home/.config/nvim ]] || fail "migration materializes Neovim before reconciliation"; pass "migration materializes Neovim before reconciliation"

@@ -11,7 +11,7 @@ umask 077
 
 UPGRADER_URL=${PONDHOUSE_UPGRADER_URL:-https://raw.githubusercontent.com/basecamp/omarchy/f0020448ca87329199de7cb12f2015ebc4a3e5e7/bin/omarchy-upgrade-to-quattro}
 UPGRADER_SHA256=${PONDHOUSE_UPGRADER_SHA256:-fd5f311313c87bf25429220a3c4e65da755ee0c2e78648a20e30e86133495fd4}
-PACKAGE_VERSION=${PONDHOUSE_PACKAGE_VERSION:-2026.08.15-29}
+PACKAGE_VERSION=${PONDHOUSE_PACKAGE_VERSION:-2026.08.15-34}
 KEYRING_VERSION=${PONDHOUSE_KEYRING_VERSION:-2026.08.15-1}
 KEYRING_SHA256=${PONDHOUSE_KEYRING_SHA256:-d4e41fa5bc79de1ede3fd27202558d722d4ce433b98a6110e0736db2b7ada257}
 PACKAGE_SHA256=${PONDHOUSE_PACKAGE_SHA256:-66561287e7a8988216dac83fe836db07be75a643f8ac0fbc34ea79011190c86d}
@@ -718,6 +718,22 @@ cat <<EOF
 Pondhouse Quattro migration completed.
 Migration records: $RUN_DIR
 Permanent checkout backup: $(<"$RUN_DIR/inventory/backup-path")
+
+Hyprland now uses Lua. Legacy monitor, autostart, and employee-specific Teams
+settings remain in the permanent checkout backup and are not enabled
+automatically. Do not restore the old Hyprland .conf files wholesale.
+
+You can ask an AI agent to migrate only the settings you still want. Example:
+
+  Review my legacy Hyprland configuration under
+  $(<"$RUN_DIR/inventory/backup-path")/legacy-checkout/config/hypr, the backed-up
+  bin/start-teams.sh and applications directory, and my current ~/.config/hypr
+  Lua configuration. Help me selectively migrate my monitor layout to
+  monitors.lua and startup applications to autostart.lua. If I still need the
+  employee-specific Teams launcher, migrate its script or desktop entry to an
+  employee-owned location and invoke it from bindings.lua. Preserve the Omarchy
+  and Pondhouse load order, do not edit hypr/pondhouse.lua, do not restore
+  legacy .conf files, and validate with hyprctl reload and hyprctl configerrors.
 
 Reboot when ready, then run omarchy-pondhouse-parity.
 EOF
