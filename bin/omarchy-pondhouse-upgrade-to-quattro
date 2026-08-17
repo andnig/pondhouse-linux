@@ -614,6 +614,7 @@ _pondhouse_herdr_rename_tab_from_pwd() {
   local tab_name=${PWD:t}
   local tab_number
   [[ -n $tab_name ]] || tab_name=/
+  (( ${#tab_name} > 24 )) && tab_name="${tab_name[1,21]}..."
   tab_number=$(command herdr tab list --workspace "$HERDR_WORKSPACE_ID" 2>/dev/null |
     jq -r --arg tab_id "$HERDR_TAB_ID" \
       '.result.tabs | to_entries[] | select(.value.tab_id == $tab_id) | .key + 1' 2>/dev/null)

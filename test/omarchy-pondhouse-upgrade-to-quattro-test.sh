@@ -334,6 +334,7 @@ grep -Fqx 'use --global node@22 npm:pnpm' "$fixture/home/mise-actions" || fail "
 grep -Fqx 'setopt APPEND_HISTORY' "$fixture/home/.zshrc" || fail "migration copies Pondhouse Zsh default"; pass "migration copies Pondhouse Zsh default"
 grep -Fqx '  herdr' "$fixture/home/.zshrc" || fail "migration preserves shell after Herdr detach"; pass "migration preserves shell after Herdr detach"
 grep -Fq '_pondhouse_herdr_rename_tab_from_pwd' "$fixture/home/.zshrc" || fail "migration configures numbered Herdr directory tabs"; pass "migration configures numbered Herdr directory tabs"
+grep -Fq '${#tab_name} > 24' "$fixture/home/.zshrc" || fail "migration bounds Herdr directory tab names"; pass "migration bounds Herdr directory tab names"
 
 fixture=$(make_fixture downloaded-upgrader)
 TEST_DOWNLOAD_UPGRADER=1 run_migration "$fixture" --yes >/dev/null
