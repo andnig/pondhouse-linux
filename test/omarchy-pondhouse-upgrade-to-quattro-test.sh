@@ -292,10 +292,10 @@ expect_preconversion_failure() {
   pass "$label leaves upstream invocation count at zero"
 }
 
-grep -Fq 'PACKAGE_VERSION=${PONDHOUSE_PACKAGE_VERSION:-2026.08.15-20}' "$COMMAND" || fail "production package release is pinned"; pass "production package release is pinned"
-grep -Fq 'PACKAGE_SHA256=${PONDHOUSE_PACKAGE_SHA256:-b4885e6691d00568389bdfba34985385c7e300c139e6cef8cbf2eb732ebe7712}' "$COMMAND" || fail "production package checksum is pinned"; pass "production package checksum is pinned"
+grep -Fq 'PACKAGE_VERSION=${PONDHOUSE_PACKAGE_VERSION:-2026.08.15-21}' "$COMMAND" || fail "production package release is pinned"; pass "production package release is pinned"
+grep -Fq 'PACKAGE_SHA256=${PONDHOUSE_PACKAGE_SHA256:-ae6a2fc765f71e74745fac87cfadc6dd7a30010bbc4db62267ae28db4116c550}' "$COMMAND" || fail "production package checksum is pinned"; pass "production package checksum is pinned"
 grep -Fq 'KEYRING_SHA256=${PONDHOUSE_KEYRING_SHA256:-4d0aaad00d9d15a89f4980c3ff71a4c7897d7b2694797af9c1a59b32fcc9141f}' "$COMMAND" || fail "production keyring checksum is pinned"; pass "production keyring checksum is pinned"
-grep -Fq 'REPOSITORY_SHA256=${PONDHOUSE_REPOSITORY_SHA256:-b53eb9696a0230f41f773a2df00641cbd995f5b5b659c1e5aed9e2656af64487}' "$COMMAND" || fail "production repository checksum is pinned"; pass "production repository checksum is pinned"
+grep -Fq 'REPOSITORY_SHA256=${PONDHOUSE_REPOSITORY_SHA256:-ce1fb4d54d2a70fcaaf647abde3df8342f5f489e5bad4937f1499e4f82f434d6}' "$COMMAND" || fail "production repository checksum is pinned"; pass "production repository checksum is pinned"
 
 fixture=$(make_fixture dry-run)
 truncate -s 2M "$fixture/home/.claude/agent-state"
