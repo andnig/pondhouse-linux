@@ -332,6 +332,7 @@ grep -Fqx 'LocalFileSigLevel = Optional' "$fixture/pacman.conf" || fail "migrati
 grep -Fqx 'use --global node@22 npm:pnpm' "$fixture/home/mise-actions" || fail "migration configures Node and pnpm through Mise"; pass "migration configures Node and pnpm through Mise"
 [[ -f $fixture/home/.zshrc && ! -L $fixture/home/.zshrc ]] || fail "migration installs employee-owned Zsh config"; pass "migration installs employee-owned Zsh config"
 grep -Fqx 'setopt APPEND_HISTORY' "$fixture/home/.zshrc" || fail "migration copies Pondhouse Zsh default"; pass "migration copies Pondhouse Zsh default"
+grep -Fqx '  herdr' "$fixture/home/.zshrc" || fail "migration preserves shell after Herdr detach"; pass "migration preserves shell after Herdr detach"
 
 fixture=$(make_fixture downloaded-upgrader)
 TEST_DOWNLOAD_UPGRADER=1 run_migration "$fixture" --yes >/dev/null
