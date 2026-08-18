@@ -82,7 +82,7 @@ only deliberate employee overrides.
 ## Updates After Migration
 
 The migration installs the immutable signed release
-`pondhouse-omarchy 2026.08.15-15` and configures:
+`pondhouse-omarchy 2026.08.15-35` and configures:
 
 ```ini
 [pondhouse]
