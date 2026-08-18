@@ -1,17 +1,17 @@
 # Quattro Rollout Evidence
 
-Release `pondhouse-omarchy 2026.08.15-35` was checked against the immutable
+Release `pondhouse-omarchy 2026.08.15-36` was checked against the immutable
 snapshot at
-`https://packages.pondhouse-data.com/snapshots/2026.08.15-35/x86_64` on
+`https://packages.pondhouse-data.com/snapshots/2026.08.15-36/x86_64` on
 2026-08-18.
 
 | Artifact | SHA-256 |
 | --- | --- |
 | `pondhouse-keyring-2026.08.15-1-any.pkg.tar.zst` | `fcb8a8dda4b079dd35790191dbfcb0948f5986071204e2e9e6db1391050c6c75` |
-| `pondhouse-omarchy-2026.08.15-35-x86_64.pkg.tar.zst` | `7c80d22cdcf4e7e27fd0164685f2aa5be1e5e56baec30201f8debaed1408c964` |
-| `pondhouse.db.tar.gz` | `c4d3f5df4c49bf898975e90a994be0687a1feaf0b271a51bb02d142703d563cd` |
+| `pondhouse-omarchy-2026.08.15-36-x86_64.pkg.tar.zst` | `ba3bd0a1fbeab4d7a54dcf27d1f5c11b28afb9b5a35cfc96570737d4c4ec49f3` |
+| `pondhouse.db.tar.gz` | `cab95c6032aa1db284686d8299c95a92cd9b526cd91530afecc701f78344815f` |
 
-The package source is commit `71a46d7fe00ffb83c2568507968749ddaf0cce99`.
+The package source is commit `915feac494d81a48d224e176057578230cfbab84`.
 The database and both packages have valid signatures from the trusted Pondhouse
 signing key. The v3 updater and ISO builder pin this exact snapshot and the full
 primary fingerprint `2E4DE2E86D2D5D4EF994B0A849EE396C83FEEC69`.
