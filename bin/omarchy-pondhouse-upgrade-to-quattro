@@ -565,10 +565,42 @@ skip_fresh_sunshine_firewall() {
   printf '%s\n' "$PACKAGE_VERSION" | sudo tee "$marker" >/dev/null
 }
 
+remove_required_package_conflicts() {
+  local source manifest package conflict metadata
+  local -a packages
+
+  for source in repository aur; do
+    manifest="$PONDHOUSE_SHARE_DIR/packages/required-$source.packages"
+    [[ -r $manifest ]] || continue
+    mapfile -t packages < <(grep -Ev '^[[:space:]]*(#|$)' "$manifest")
+    for package in "${packages[@]}"; do
+      pacman -Q "$package" &>/dev/null && continue
+      if [[ $source == repository ]]; then
+        metadata=$(LC_ALL=C pacman -Si "$package")
+      else
+        metadata=$(LC_ALL=C yay -Si --aur "$package")
+      fi
+      while IFS= read -r conflict; do
+        conflict=${conflict%%[<>=]*}
+        [[ -n $conflict ]] || continue
+        if pacman -Q "$conflict" &>/dev/null; then
+          echo "Replacing conflicting package $conflict with required package $package"
+          sudo pacman -Rdd --noconfirm "$conflict"
+        fi
+      done < <(awk -F: '$1 ~ /^Conflicts With[[:space:]]*$/ && $2 !~ /^[[:space:]]*None/ {
+        gsub(/^[[:space:]]+|[[:space:]]+$/, "", $2)
+        gsub(/[[:space:]]+/, "\n", $2)
+        print $2
+      }' <<<"$metadata")
+    done
+  done
+}
+
 reconcile_pondhouse() {
   export PONDHOUSE_LEGACY_CHECKOUT
   PONDHOUSE_LEGACY_CHECKOUT="$(<"$RUN_DIR/inventory/backup-path")/legacy-checkout"
   if ! phase_done required-packages; then
+    remove_required_package_conflicts
     omarchy-pondhouse-reconcile-packages
     mark_phase required-packages
   fi

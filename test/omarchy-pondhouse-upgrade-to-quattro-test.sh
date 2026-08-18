@@ -25,7 +25,8 @@ make_fixture() {
     "$fixture/home/.local/share/omarchy/config/nested" \
     "$fixture/home/.config" "$fixture/home/.claude" "$fixture/bin" \
     "$fixture/packages" "$fixture/quattro-root" "$fixture/signing" "$fixture/pacman-gnupg" \
-    "$fixture/pacman-keyrings" "$fixture/share/scripts" "$fixture/share/tmux"
+    "$fixture/pacman-keyrings" "$fixture/share/scripts" "$fixture/share/tmux" \
+    "$fixture/share/packages"
   chmod 700 "$fixture/signing" "$fixture/pacman-gnupg"
   for script in \
     herdr-close-tab.sh herdr-kill-pane.sh herdr-move-tab.sh \
@@ -34,6 +35,8 @@ make_fixture() {
     chmod 755 "$fixture/share/scripts/$script"
   done
   printf 'set -g history-limit 1000000\n' >"$fixture/share/tmux/tmux.conf"
+  printf 'herdr\n' >"$fixture/share/packages/required-repository.packages"
+  printf 'stripe-cli-bin\n' >"$fixture/share/packages/required-aur.packages"
 
   printf 'legacy\n' >"$fixture/home/.local/share/omarchy/config/nested/value"
   printf 'personal Neovim config\n' >"$fixture/home/.local/share/omarchy/config/nvim/personal.lua"
@@ -109,12 +112,22 @@ case "${1:-}" in
           (( ${MOCK_WRONG_KEYRING_VERSION:-0} == 0 )) && echo "pondhouse-keyring 1" || echo "pondhouse-keyring 999"
         fi
         ;;
+      stripe-cli) [[ -f $HOME/stripe-cli-installed ]] && echo "stripe-cli 1.42.11-1" ;;
+      stripe-cli-bin) exit 1 ;;
       *) echo "git 1" ;;
     esac
     ;;
   -Qqe) echo git ;;
   -Qqm) echo foreign-package ;;
   -Qkk) echo "${2:-package}: 3 total files, 0 altered files" ;;
+  -Si)
+    [[ ${2:-} != herdr ]] || printf 'Conflicts With  : herdr-bin\n'
+    ;;
+  -Rdd)
+    [[ " $* " == *" stripe-cli "* ]]
+    rm -f "$HOME/stripe-cli-installed"
+    echo stripe-cli-removed >>"$HOME/phase-actions"
+    ;;
   *)
     if [[ " $* " == *" -U "* ]]; then
       package=${@: -1}
@@ -148,6 +161,13 @@ case "${1:-}" in
     fi
     ;;
 esac
+EOF
+
+  cat >"$fixture/bin/yay" <<'EOF'
+#!/bin/bash
+if [[ " $* " == *" stripe-cli-bin "* ]]; then
+  printf 'Conflicts With  : stripe-cli\n'
+fi
 EOF
 
   cat >"$fixture/bin/cp" <<'EOF'
@@ -247,6 +267,7 @@ fi
 EOF
   done
   chmod 755 "$fixture/bin"/*
+  touch "$fixture/home/stripe-cli-installed"
   printf '%s\n' "$fixture"
 }
 
@@ -353,7 +374,9 @@ trust_line=$(grep -n '^trust-populated$' "$fixture/home/phase-actions" | head -n
 upstream_line=$(grep -n '^upstream$' "$fixture/home/phase-actions" | cut -d: -f1)
 package_line=$(grep -n '^company-installed$' "$fixture/home/phase-actions" | cut -d: -f1)
 reconciliation_line=$(grep -n '^reconciliation$' "$fixture/home/phase-actions" | head -n1 | cut -d: -f1)
-(( preservation_line < trust_line && trust_line < upstream_line && upstream_line < package_line && package_line < reconciliation_line )) || fail "migration phase ordering is safe"; pass "migration phase ordering is safe"
+stripe_removal_line=$(grep -n '^stripe-cli-removed$' "$fixture/home/phase-actions" | cut -d: -f1)
+(( preservation_line < trust_line && trust_line < upstream_line && upstream_line < package_line && package_line < stripe_removal_line && stripe_removal_line < reconciliation_line )) || fail "migration phase ordering is safe"; pass "migration phase ordering is safe"
+[[ ! -e $fixture/home/stripe-cli-installed ]] || fail "migration retains conflicting Stripe provider"; pass "migration replaces conflicting Stripe provider"
 [[ -f $run_dir/phases/pondhouse-trust-ready ]] || fail "migration records trust readiness"; pass "migration records trust readiness"
 grep -Fqx 'LocalFileSigLevel = Optional' "$fixture/pacman.conf" || fail "migration preserves global pacman policy"; pass "migration preserves global pacman policy"
 (( $(wc -l <"$fixture/home/reconciliation-actions") == 3 )) || fail "migration runs package-owned reconcilers"; pass "migration runs package-owned reconcilers"
