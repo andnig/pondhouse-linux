@@ -723,17 +723,25 @@ Hyprland now uses Lua. Legacy monitor, autostart, and employee-specific Teams
 settings remain in the permanent checkout backup and are not enabled
 automatically. Do not restore the old Hyprland .conf files wholesale.
 
+Automatic workspace application startup is currently unreliable in the
+Pondhouse Hyprland/UWSM setup. The package installs a disabled manual launcher
+template in ~/.config/hypr/autostartworkaround.lua and matching commented
+SUPER+CTRL+I binding guidance in ~/.config/hypr/bindings.lua.
+
 You can ask an AI agent to migrate only the settings you still want. Example:
 
   Review my legacy Hyprland configuration under
   $(<"$RUN_DIR/inventory/backup-path")/legacy-checkout/config/hypr, the backed-up
   bin/start-teams.sh and applications directory, and my current ~/.config/hypr
   Lua configuration. Help me selectively migrate my monitor layout to
-  monitors.lua and startup applications to autostart.lua. If I still need the
-  employee-specific Teams launcher, migrate its script or desktop entry to an
-  employee-owned location and invoke it from bindings.lua. Preserve the Omarchy
-  and Pondhouse load order, do not edit hypr/pondhouse.lua, do not restore
-  legacy .conf files, and validate with hyprctl reload and hyprctl configerrors.
+  monitors.lua. Migrate the workspace applications I still want into
+  autostartworkaround.lua and enable its commented SUPER+CTRL+I manual launch
+  binding in bindings.lua; do not put those applications in autostart.lua. If I
+  still need the employee-specific Teams launcher, migrate its script or desktop
+  entry to an employee-owned location and invoke it from bindings.lua. Preserve
+  the Omarchy and Pondhouse load order, do not edit hypr/pondhouse.lua, do not
+  restore legacy .conf files, and validate with hyprctl reload and
+  hyprctl configerrors.
 
 Reboot when ready, then run omarchy-pondhouse-parity.
 EOF
