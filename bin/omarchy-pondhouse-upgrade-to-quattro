@@ -237,7 +237,13 @@ materialize_link() {
     return 0
   fi
   points_into_legacy_root "$path" || return 0
+  if [[ ! -e $path ]]; then
+    echo "Removing dangling legacy link $path"
+    rm -- "$path"
+    return 0
+  fi
 
+  echo "Materializing $path"
   source=$path
   rm -rf -- "$temporary"
   if ! cp -aH --reflink=auto -- "$source" "$temporary"; then
@@ -284,7 +290,6 @@ preserve_and_materialize() {
   fi
   while IFS=$'\t' read -r path _; do
     [[ -n $path ]] || continue
-    echo "Materializing $path"
     materialize_link "$path"
   done < <(awk -F '\t' '{ print length($1) "\t" $0 }' "$RUN_DIR/inventory/materialized-links.tsv" | sort -n | cut -f2-)
   mark_phase preservation

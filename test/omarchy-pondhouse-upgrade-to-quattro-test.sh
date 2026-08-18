@@ -42,6 +42,7 @@ make_fixture() {
     "$fixture/home/.local/share/omarchy/config/agents/.agents/nested-legacy"
   ln -s "$fixture/home/.local/share/omarchy/config/nested" "$fixture/home/.config/nested"
   ln -s "$fixture/home/.local/share/omarchy/config/nvim" "$fixture/home/.config/nvim"
+  ln -s "$fixture/home/.local/share/omarchy/config/remmina" "$fixture/home/.config/remmina"
   ln -s "$fixture/home/.local/share/omarchy/config/agents/.agents" "$fixture/home/.agents"
   ln -s "$fixture/home/.local/share/omarchy/config/nested/value" "$fixture/home/.claude/untouched"
 
@@ -312,6 +313,7 @@ run_dir=$(find "$fixture/state" -mindepth 1 -maxdepth 1 -type d -name '*-dry-run
 [[ -s $run_dir/inventory/legacy-status.txt ]] || fail "dry run records git state"; pass "dry run records git state"
 grep -Fq 'config/opencode/secret.json' "$run_dir/inventory/legacy-ignored.tsv" || fail "dry run inventories ignored paths"; pass "dry run inventories ignored paths"
 grep -Fq "$fixture/home/.agents/nested-legacy" "$run_dir/inventory/materialized-links.tsv" || fail "dry run records nested checkout links"; pass "dry run records nested checkout links"
+grep -Fq "$fixture/home/.config/remmina" "$run_dir/inventory/materialized-links.tsv" || fail "dry run records dangling checkout links"; pass "dry run records dangling checkout links"
 [[ -L $fixture/home/.config/nested ]] || fail "dry run leaves checkout link intact"; pass "dry run leaves checkout link intact"
 [[ ! -e $fixture/backups ]] || fail "dry run makes no backup"; pass "dry run makes no backup"
 estimated_size=$(sed -n 's/^Estimated preservation space: \([0-9.]*\)MiB$/\1/p' <<<"$dry_run_output")
@@ -341,6 +343,7 @@ grep -Fq 'do not edit hypr/pondhouse.lua' <<<"$complete_output" || fail "migrati
 [[ ! -L $fixture/home/.agents ]] || fail "migration materializes selected top-level link"; pass "migration materializes selected top-level link"
 [[ ! -L $fixture/home/.config/nested ]] || fail "migration materializes selected config link"; pass "migration materializes selected config link"
 [[ ! -L $fixture/home/.config/nvim ]] || fail "migration materializes Neovim before reconciliation"; pass "migration materializes Neovim before reconciliation"
+[[ ! -L $fixture/home/.config/remmina && ! -e $fixture/home/.config/remmina ]] || fail "migration removes dangling checkout link"; pass "migration removes dangling checkout link"
 [[ ! -L $fixture/home/.agents/nested-legacy ]] || fail "migration materializes nested legacy link"; pass "migration materializes nested legacy link"
 [[ -L $fixture/home/.claude/untouched ]] || fail "migration excludes Claude"; pass "migration excludes Claude"
 [[ ! -e $fixture/home/.claude/changed && ! -e $fixture/home/.codex && ! -e $fixture/home/.pi ]] || fail "migration restores excluded agent state"; pass "migration restores excluded agent state"
