@@ -7,7 +7,7 @@ snapshot at
 
 | Artifact | SHA-256 |
 | --- | --- |
-| `pondhouse-keyring-2026.08.15-1-any.pkg.tar.zst` | `fcb8a8dda4b079dd35790191dbfcb0948f5986071204e2e9e6db1391050c6c75` |
+| `pondhouse-keyring-2026.08.15-1-any.pkg.tar.zst` | `059c6d78e1146dab47e707bb76b6e5ba4c5e86942a401511390bd27d7355d42b` |
 | `pondhouse-omarchy-2026.08.15-36-x86_64.pkg.tar.zst` | `ba3bd0a1fbeab4d7a54dcf27d1f5c11b28afb9b5a35cfc96570737d4c4ec49f3` |
 | `pondhouse.db.tar.gz` | `cab95c6032aa1db284686d8299c95a92cd9b526cd91530afecc701f78344815f` |
 

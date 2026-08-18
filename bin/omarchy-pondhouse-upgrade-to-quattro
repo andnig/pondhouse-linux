@@ -13,7 +13,7 @@ UPGRADER_URL=${PONDHOUSE_UPGRADER_URL:-https://raw.githubusercontent.com/basecam
 UPGRADER_SHA256=${PONDHOUSE_UPGRADER_SHA256:-fd5f311313c87bf25429220a3c4e65da755ee0c2e78648a20e30e86133495fd4}
 PACKAGE_VERSION=${PONDHOUSE_PACKAGE_VERSION:-2026.08.15-36}
 KEYRING_VERSION=${PONDHOUSE_KEYRING_VERSION:-2026.08.15-1}
-KEYRING_SHA256=${PONDHOUSE_KEYRING_SHA256:-fcb8a8dda4b079dd35790191dbfcb0948f5986071204e2e9e6db1391050c6c75}
+KEYRING_SHA256=${PONDHOUSE_KEYRING_SHA256:-059c6d78e1146dab47e707bb76b6e5ba4c5e86942a401511390bd27d7355d42b}
 PACKAGE_SHA256=${PONDHOUSE_PACKAGE_SHA256:-ba3bd0a1fbeab4d7a54dcf27d1f5c11b28afb9b5a35cfc96570737d4c4ec49f3}
 REPOSITORY_SHA256=${PONDHOUSE_REPOSITORY_SHA256:-cab95c6032aa1db284686d8299c95a92cd9b526cd91530afecc701f78344815f}
 SIGNING_FINGERPRINT=${PONDHOUSE_SIGNING_FINGERPRINT:-2E4DE2E86D2D5D4EF994B0A849EE396C83FEEC69}
@@ -64,6 +64,17 @@ done
 if (( EUID == 0 )); then
   echo "Run this migration as the employee; it uses sudo only for machine changes" >&2
   exit 1
+fi
+
+if [[ -z $RUN_DIR ]] && pacman -Q pondhouse-omarchy &>/dev/null; then
+  latest=$(readlink -f -- "$STATE_BASE/latest" 2>/dev/null || true)
+  if [[ -n $latest && -f $latest/inventory/system.txt && ! -f $latest/phases/complete ]]; then
+    printf 'A Pondhouse Quattro migration is already in progress. Resume with:\n  %q --resume %q --yes\n' \
+      "$latest/pondhouse-upgrade-to-quattro" "$latest" >&2
+    exit 1
+  fi
+  echo "Pondhouse Omarchy is already package-backed; no Quattro migration is needed."
+  exit 0
 fi
 
 [[ -e $LEGACY_ROOT ]] && LEGACY_ROOT=$(readlink -f -- "$LEGACY_ROOT")
