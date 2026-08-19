@@ -59,6 +59,7 @@ make_fixture() {
 #!/bin/bash
 echo run >>"$HOME/upgrader-runs"
 echo upstream >>"$HOME/phase-actions"
+touch "$HOME/upstream-created-file"
 mkdir -p "$HOME/.codex" "$HOME/.pi"
 echo generated >"$HOME/.codex/generated"
 echo generated >"$HOME/.pi/generated"
@@ -348,6 +349,8 @@ pass "isolated pacman trust starts without Pondhouse key"
 complete_output=$(run_migration "$fixture" --yes)
 run_dir=$(readlink -f "$fixture/state/latest")
 backup_dir=$(<"$run_dir/inventory/backup-path")
+[[ $(stat -c %a "$fixture/home/upstream-created-file") == 644 ]] || fail "upstream upgrader inherits private umask"; pass "upstream upgrader uses normal system file permissions"
+[[ $(stat -c %a "$run_dir/inventory/system.txt") == 600 ]] || fail "migration evidence loses private umask"; pass "migration evidence remains private"
 [[ -f $backup_dir/legacy-checkout/config/opencode/secret.json ]] || fail "migration keeps a private data backup"; pass "migration keeps a private data backup"
 [[ -f $backup_dir/legacy-checkout/config/nvim/personal.lua ]] || fail "migration keeps the Neovim config backup"; pass "migration keeps the Neovim config backup"
 [[ -f $backup_dir/inventory/legacy-status.txt ]] || fail "migration permanently backs up evidence"; pass "migration permanently backs up evidence"

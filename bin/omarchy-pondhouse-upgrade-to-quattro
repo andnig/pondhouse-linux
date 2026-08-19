@@ -341,8 +341,11 @@ EOF
   touch "$RUN_DIR/phases/upstream-attempted"
   rm -f "$RUN_DIR/phases/protected-agent-state"
   echo "Running the checksum-pinned Basecamp Quattro upgrader"
-  if ! PATH="$no_reboot_bin:$PATH" PONDHOUSE_QUATTRO_ROOT="$QUATTRO_ROOT" \
-    "$upgrader" --yes --channel stable; then
+  if ! (
+    umask 022
+    PATH="$no_reboot_bin:$PATH" PONDHOUSE_QUATTRO_ROOT="$QUATTRO_ROOT" \
+      "$upgrader" --yes --channel stable
+  ); then
     restore_protected_agent_state
     return 1
   fi
