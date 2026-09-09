@@ -1,5 +1,43 @@
 # Quattro Rollout Evidence
 
+## Current pin: 2026.09.09-1
+
+The v3 upgrader and ISO builder now target the stable release
+`pondhouse-omarchy 2026.09.09-1` from
+`https://packages.pondhouse-data.com/snapshots/2026.09.09-1/x86_64`.
+Package source: `8eb8dafa49bdf1f319b030c3257f1b7ce5bfc603`.
+Publication: <https://github.com/pondhouse-data/pondhouse-omarchy/actions/runs/34324416612>.
+
+| Artifact | SHA-256 |
+| --- | --- |
+| `pondhouse-keyring-2026.09.09-1-any.pkg.tar.zst` | `2c175ad811d1c2b8a50e1f8dfee800df8f6ec089e2f502bafc98a25b25bacd46` |
+| `pondhouse-omarchy-2026.09.09-1-x86_64.pkg.tar.zst` | `976a6bd5b33c40d2fe2bbb955ddf0ed21203ae702f4e389855d5a58f4299e226` |
+| `pondhouse.db.tar.gz` | `548a4eabb567ac709e7c43981d26efa701407719d0773ed0d5c0f31a3f46fa74` |
+
+Verified on 2026-09-09: all three signatures use signing subkey
+`68B44A47FF98508F594ECEC1BC705B1A8A53E72E`; the stable database matches the
+immutable snapshot, and both database package hashes match downloaded artifacts.
+The published `prepare-ssh.sh` and migration `020-prepare-ssh.sh` match the
+tested source. Evidence downloads are at
+`/tmp/opencode/pondhouse-release-2026.09.09-1` on the release workstation.
+
+The package source suite and ISO VM-free suite passed. The built package's
+employee migration was exercised in a disposable Arch container for an absent
+scripts directory, an existing employee file, and a broken symlink. Andreas
+verified live SSH to `hetzner.general` with the new helper, including clean
+exit, agent termination, and socket removal. This release does not claim a
+newly built or VM-qualified ISO; these pins select the package for future builds.
+
+The updated v3 migration contract suite also passed. A separate network-isolated
+Arch container installed both published packages with `SigLevel = Required` and
+`LocalFileSigLevel = Required`; `pacman -Qkk` reported zero altered files, and the
+installed user migration seeded an executable helper. That narrow packaging test
+used `-Udd --noscriptlet` and disabled the desktop-branding hook because the
+container lacks the full Omarchy desktop. It verifies signatures, installed
+payload, and the new employee migration, not a full workstation upgrade.
+
+## Historical baseline: 2026.08.15-36
+
 Release `pondhouse-omarchy 2026.08.15-36` was checked against the immutable
 snapshot at
 `https://packages.pondhouse-data.com/snapshots/2026.08.15-36/x86_64` on

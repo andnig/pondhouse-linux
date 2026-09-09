@@ -322,10 +322,11 @@ expect_preconversion_failure() {
   pass "$label leaves upstream invocation count at zero"
 }
 
-grep -Fq 'PACKAGE_VERSION=${PONDHOUSE_PACKAGE_VERSION:-2026.08.15-36}' "$COMMAND" || fail "production package release is pinned"; pass "production package release is pinned"
-grep -Fq 'PACKAGE_SHA256=${PONDHOUSE_PACKAGE_SHA256:-ba3bd0a1fbeab4d7a54dcf27d1f5c11b28afb9b5a35cfc96570737d4c4ec49f3}' "$COMMAND" || fail "production package checksum is pinned"; pass "production package checksum is pinned"
-grep -Fq 'KEYRING_SHA256=${PONDHOUSE_KEYRING_SHA256:-059c6d78e1146dab47e707bb76b6e5ba4c5e86942a401511390bd27d7355d42b}' "$COMMAND" || fail "production keyring checksum is pinned"; pass "production keyring checksum is pinned"
-grep -Fq 'REPOSITORY_SHA256=${PONDHOUSE_REPOSITORY_SHA256:-cab95c6032aa1db284686d8299c95a92cd9b526cd91530afecc701f78344815f}' "$COMMAND" || fail "production repository checksum is pinned"; pass "production repository checksum is pinned"
+grep -Fq 'PACKAGE_VERSION=${PONDHOUSE_PACKAGE_VERSION:-2026.09.09-1}' "$COMMAND" || fail "production package release is pinned"; pass "production package release is pinned"
+grep -Fq 'KEYRING_VERSION=${PONDHOUSE_KEYRING_VERSION:-2026.09.09-1}' "$COMMAND" || fail "production keyring release is pinned"; pass "production keyring release is pinned"
+grep -Fq 'PACKAGE_SHA256=${PONDHOUSE_PACKAGE_SHA256:-976a6bd5b33c40d2fe2bbb955ddf0ed21203ae702f4e389855d5a58f4299e226}' "$COMMAND" || fail "production package checksum is pinned"; pass "production package checksum is pinned"
+grep -Fq 'KEYRING_SHA256=${PONDHOUSE_KEYRING_SHA256:-2c175ad811d1c2b8a50e1f8dfee800df8f6ec089e2f502bafc98a25b25bacd46}' "$COMMAND" || fail "production keyring checksum is pinned"; pass "production keyring checksum is pinned"
+grep -Fq 'REPOSITORY_SHA256=${PONDHOUSE_REPOSITORY_SHA256:-548a4eabb567ac709e7c43981d26efa701407719d0773ed0d5c0f31a3f46fa74}' "$COMMAND" || fail "production repository checksum is pinned"; pass "production repository checksum is pinned"
 if grep -Fq 'configure_employee_zshrc' "$COMMAND"; then fail "migration duplicates package-owned shell policy"; fi; pass "migration delegates shell policy to package reconcilers"
 
 fixture=$(make_fixture dry-run)
