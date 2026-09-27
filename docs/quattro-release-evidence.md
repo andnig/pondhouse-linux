@@ -1,6 +1,41 @@
 # Quattro Rollout Evidence
 
-## Current pin: 2026.09.09-1
+## Current pin: 2026.09.27-1
+
+The v3 upgrader and ISO builder target the stable Sunshine-readiness release
+`pondhouse-omarchy 2026.09.27-1` from
+`https://packages.pondhouse-data.com/snapshots/2026.09.27-1/x86_64`.
+Package source: `23a2f11` (on top of the fingerprint-support release).
+Publication: <https://github.com/pondhouse-data/pondhouse-omarchy/actions/runs/36333228930>.
+
+| Artifact | SHA-256 |
+| --- | --- |
+| `pondhouse-keyring-2026.09.27-1-any.pkg.tar.zst` | `d988f33736a46517e19a7ba6e7d1be6d68fb26c82da9579fe9e29d63a6d5d23c` |
+| `pondhouse-omarchy-2026.09.27-1-x86_64.pkg.tar.zst` | `9c3454f5bbf3a7a0ac735b5ac2af026f46428631ff775b3d5fc2b7341262a6e2` |
+| `pondhouse.db.tar.gz` | `7674c5475f7628182c7a655bd6ff27f12d17eaeaa2d4af5df2096662980d6db7` |
+
+Verified on 27 September: all three signatures use signing subkey
+`68B44A47FF98508F594ECEC1BC705B1A8A53E72E`; stable matches the immutable snapshot,
+repository metadata matches the package hashes, and the published Sunshine
+helper, service drop-in, wrapper and migration `027` match tested source.
+Evidence downloads: `/tmp/opencode/pondhouse-release-2026.09.27-1`.
+
+The full package suite (including 12 new readiness/migration tests) and CI's
+privileged Sunshine/UFW tests passed. ISO VM-free tests passed. The live office
+stream was tested at 1080p60, with a session-only 4K output, and restart cleanup
+was checked on both AMD and NVIDIA hosts before packaging. No cold reboot or new
+ISO image is claimed; the pins select this package for future builds/upgrades.
+
+The updated v3 migration contract suite passed. A disposable Arch container
+installed the published artifacts with `SigLevel = Required` and
+`LocalFileSigLevel = Required`; `pacman -Qkk` reported zero altered files
+(334 package files, 10 keyring files). Installed migration `027` passed fresh
+and recognized-helper upgrade fixtures, twice each as an unprivileged employee.
+This narrow payload test used `-Udd --noscriptlet` and disabled the
+desktop-branding hook because the container lacks Omarchy; it is not a full
+workstation upgrade. ISO source pin: `3ef6e48`.
+
+## Historical pin: 2026.09.09-1
 
 The v3 upgrader and ISO builder now target the stable release
 `pondhouse-omarchy 2026.09.09-1` from
