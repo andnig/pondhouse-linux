@@ -1,6 +1,32 @@
 # Quattro Rollout Evidence
 
-## Current pin: 2026.09.27-1
+## Current pin: 2026.10.01-1
+
+The v3 upgrader and ISO builder target the stable Starship-default release.
+Package source: `5aaceda0c2b38ed728be9611dca52004f72c5cfc`.
+Publication: <https://github.com/pondhouse-data/pondhouse-omarchy/actions/runs/36853495993>.
+Snapshot: `https://packages.pondhouse-data.com/snapshots/2026.10.01-1/x86_64`.
+
+| Artifact | SHA-256 |
+| --- | --- |
+| `pondhouse-keyring-2026.10.01-1-any.pkg.tar.zst` | `80ea02c6957bb2f5238e738503b17d8703fc4de3b0d86e64707d03efa4000635` |
+| `pondhouse-omarchy-2026.10.01-1-x86_64.pkg.tar.zst` | `bd981f27a59da805fe7f80a4c9e8f6c82e45ede182b99280b97461f0953648ed` |
+| `pondhouse.db.tar.gz` | `e86866522dfc3f6b4b24324a52e777039a1fa508ebf93f9e7c5c8c231b692691` |
+
+Verified on 1 October: all three signatures use signing subkey
+`68B44A47FF98508F594ECEC1BC705B1A8A53E72E`; stable matches the immutable snapshot.
+Evidence downloads: `/tmp/opencode/pondhouse-release-2026.10.01-1`.
+The full package suite and local builds passed, as did the publication workflow,
+including its privileged Sunshine/UFW checks. Migration `028` tests missing and
+stock configs, customized configs, symlinks, directories, XDG paths, idempotency,
+and fresh/prior-marker reconciliation. This release adds a copied employee-owned
+Starship default; it does not force changes to customized prompts.
+ISO VM-free tests and the v3 migration contract suite passed with the new pins.
+Published payloads match the tested Starship template and migration, and database
+hashes match both packages. No new ISO image or full desktop installation was
+performed for this release; these pins apply to future builds and upgrades.
+
+## Previous pin: 2026.09.27-1
 
 The v3 upgrader and ISO builder target the stable Sunshine-readiness release
 `pondhouse-omarchy 2026.09.27-1` from
