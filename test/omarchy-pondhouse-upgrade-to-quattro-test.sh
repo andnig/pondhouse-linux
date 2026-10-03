@@ -321,11 +321,11 @@ expect_preconversion_failure() {
   pass "$label leaves upstream invocation count at zero"
 }
 
-grep -Fq 'PACKAGE_VERSION=${PONDHOUSE_PACKAGE_VERSION:-2026.10.03-1}' "$COMMAND" || fail "production package release is pinned"; pass "production package release is pinned"
-grep -Fq 'KEYRING_VERSION=${PONDHOUSE_KEYRING_VERSION:-2026.10.03-1}' "$COMMAND" || fail "production keyring release is pinned"; pass "production keyring release is pinned"
-grep -Fq 'PACKAGE_SHA256=${PONDHOUSE_PACKAGE_SHA256:-9e8db36ad7bbb14a6437f99aff4b4a3b120ca91c25c90168f067c1c728f9addf}' "$COMMAND" || fail "production package checksum is pinned"; pass "production package checksum is pinned"
-grep -Fq 'KEYRING_SHA256=${PONDHOUSE_KEYRING_SHA256:-73b146847748356f7fe64e046235e2d76fbb4be34eb93d6a8fee70ef81dab3d6}' "$COMMAND" || fail "production keyring checksum is pinned"; pass "production keyring checksum is pinned"
-grep -Fq 'REPOSITORY_SHA256=${PONDHOUSE_REPOSITORY_SHA256:-a75d3d23d838822990efb2af6a85333b26678a6c6331518bf83a4efbd71f0667}' "$COMMAND" || fail "production repository checksum is pinned"; pass "production repository checksum is pinned"
+grep -Fq 'PACKAGE_VERSION=${PONDHOUSE_PACKAGE_VERSION:-2026.10.03-2}' "$COMMAND" || fail "production package release is pinned"; pass "production package release is pinned"
+grep -Fq 'KEYRING_VERSION=${PONDHOUSE_KEYRING_VERSION:-2026.10.03-2}' "$COMMAND" || fail "production keyring release is pinned"; pass "production keyring release is pinned"
+grep -Fq 'PACKAGE_SHA256=${PONDHOUSE_PACKAGE_SHA256:-bf56a36b94bd46c9f94ed08f126a4416d07137572db8a75b1a68cd6c02abdf3c}' "$COMMAND" || fail "production package checksum is pinned"; pass "production package checksum is pinned"
+grep -Fq 'KEYRING_SHA256=${PONDHOUSE_KEYRING_SHA256:-70cd05b13dc5efdf975abe159330c766e9e749825b46661307303c1a01ed88b9}' "$COMMAND" || fail "production keyring checksum is pinned"; pass "production keyring checksum is pinned"
+grep -Fq 'REPOSITORY_SHA256=${PONDHOUSE_REPOSITORY_SHA256:-12e065a1903c0f575810f3aa08eae958ae5796af2e2a749389cc0f0a56fe8de9}' "$COMMAND" || fail "production repository checksum is pinned"; pass "production repository checksum is pinned"
 if grep -Fq 'configure_employee_zshrc' "$COMMAND"; then fail "migration duplicates package-owned shell policy"; fi; pass "migration delegates shell policy to package reconcilers"
 
 fixture=$(make_fixture dry-run)

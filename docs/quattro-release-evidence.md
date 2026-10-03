@@ -1,6 +1,42 @@
 # Quattro Rollout Evidence
 
-## Current pin: 2026.10.03-1
+## Current pin: 2026.10.03-2
+
+Future ISO builds and v3 upgrades target the stable compact Auto Title defaults.
+Package source: `fe5293262756cd0d6ca7f5db87cd5fc079a8f7b5`.
+Publication: <https://github.com/pondhouse-data/pondhouse-omarchy/actions/runs/37112218307>.
+Snapshot: `https://packages.pondhouse-data.com/snapshots/2026.10.03-2/x86_64`.
+
+| Artifact | SHA-256 |
+| --- | --- |
+| `pondhouse-keyring-2026.10.03-2-any.pkg.tar.zst` | `70cd05b13dc5efdf975abe159330c766e9e749825b46661307303c1a01ed88b9` |
+| `pondhouse-omarchy-2026.10.03-2-x86_64.pkg.tar.zst` | `bf56a36b94bd46c9f94ed08f126a4416d07137572db8a75b1a68cd6c02abdf3c` |
+| `pondhouse.db.tar.gz` | `12e065a1903c0f575810f3aa08eae958ae5796af2e2a749389cc0f0a56fe8de9` |
+
+Verified on 3 October: all three signatures use signing subkey
+`68B44A47FF98508F594ECEC1BC705B1A8A53E72E`; stable matches the immutable snapshot,
+and database hashes match the downloaded packages. Published config defaults,
+config seeder, setup command, and migrations `029`/`030` match tested source.
+Evidence: `/tmp/opencode/pondhouse-release-2026.10.03-2`.
+
+The default config enables positional numbering, hides agent names and branches,
+and caps titles at 25 columns. The setup step called by `029` now seeds missing
+settings idempotently. Released migration `029` itself is unchanged; new `030`
+reaches machines that already completed it. Explicit employee values, unrelated
+settings, symlinks, and modes are preserved; existing files are backed up before
+missing settings are appended. A complete config is not rewritten on retries.
+
+The full package suite (including 21 focused Auto Title tests), both local builds,
+and the publishing workflow passed. Packaged fresh, completed-029, and customized
+config fixtures passed with real Herdr registration in isolated employee homes;
+repeat reconciliation and direct repeated `030` kept config timestamps unchanged.
+ISO VM-free tests (including 73 Python tests) passed with the new pin. The four
+settings were also applied to the release workstation and the plugin restarted
+successfully; its live generated titles were checked at the shorter length.
+No new ISO image or full workstation upgrade is claimed for this release.
+The updated v3 migration contract suite also passed with the signed release pins.
+
+## Previous pin: 2026.10.03-1
 
 The v3 upgrader and future ISO builds target the stable Herdr Auto Title release.
 Package source: `f5872a36404b106537312212d8e34b2496448407`.
@@ -34,7 +70,7 @@ This release does not claim a new ISO image or full desktop installation.
 The source pins apply to future ISO builds and v3 upgrades. Existing running
 Bash/Zsh shells need restarting after migration to unload their in-memory hooks.
 
-## Previous pin: 2026.10.01-1
+## Historical pin: 2026.10.01-1
 
 The v3 upgrader and ISO builder target the stable Starship-default release.
 Package source: `5aaceda0c2b38ed728be9611dca52004f72c5cfc`.
