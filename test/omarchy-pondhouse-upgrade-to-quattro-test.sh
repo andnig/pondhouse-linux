@@ -29,8 +29,7 @@ make_fixture() {
     "$fixture/share/packages"
   chmod 700 "$fixture/signing" "$fixture/pacman-gnupg"
   for script in \
-    herdr-close-tab.sh herdr-kill-pane.sh herdr-move-tab.sh \
-    herdr-renumber-after-pane-exit.sh herdr-renumber-tabs.sh; do
+    herdr-close-tab.sh herdr-kill-pane.sh herdr-move-tab.sh; do
     printf '#!/bin/bash\nprintf %s\\n %q\n' "$script" "$script" >"$fixture/share/scripts/$script"
     chmod 755 "$fixture/share/scripts/$script"
   done
@@ -322,11 +321,11 @@ expect_preconversion_failure() {
   pass "$label leaves upstream invocation count at zero"
 }
 
-grep -Fq 'PACKAGE_VERSION=${PONDHOUSE_PACKAGE_VERSION:-2026.10.01-1}' "$COMMAND" || fail "production package release is pinned"; pass "production package release is pinned"
-grep -Fq 'KEYRING_VERSION=${PONDHOUSE_KEYRING_VERSION:-2026.10.01-1}' "$COMMAND" || fail "production keyring release is pinned"; pass "production keyring release is pinned"
-grep -Fq 'PACKAGE_SHA256=${PONDHOUSE_PACKAGE_SHA256:-bd981f27a59da805fe7f80a4c9e8f6c82e45ede182b99280b97461f0953648ed}' "$COMMAND" || fail "production package checksum is pinned"; pass "production package checksum is pinned"
-grep -Fq 'KEYRING_SHA256=${PONDHOUSE_KEYRING_SHA256:-80ea02c6957bb2f5238e738503b17d8703fc4de3b0d86e64707d03efa4000635}' "$COMMAND" || fail "production keyring checksum is pinned"; pass "production keyring checksum is pinned"
-grep -Fq 'REPOSITORY_SHA256=${PONDHOUSE_REPOSITORY_SHA256:-e86866522dfc3f6b4b24324a52e777039a1fa508ebf93f9e7c5c8c231b692691}' "$COMMAND" || fail "production repository checksum is pinned"; pass "production repository checksum is pinned"
+grep -Fq 'PACKAGE_VERSION=${PONDHOUSE_PACKAGE_VERSION:-2026.10.03-1}' "$COMMAND" || fail "production package release is pinned"; pass "production package release is pinned"
+grep -Fq 'KEYRING_VERSION=${PONDHOUSE_KEYRING_VERSION:-2026.10.03-1}' "$COMMAND" || fail "production keyring release is pinned"; pass "production keyring release is pinned"
+grep -Fq 'PACKAGE_SHA256=${PONDHOUSE_PACKAGE_SHA256:-9e8db36ad7bbb14a6437f99aff4b4a3b120ca91c25c90168f067c1c728f9addf}' "$COMMAND" || fail "production package checksum is pinned"; pass "production package checksum is pinned"
+grep -Fq 'KEYRING_SHA256=${PONDHOUSE_KEYRING_SHA256:-73b146847748356f7fe64e046235e2d76fbb4be34eb93d6a8fee70ef81dab3d6}' "$COMMAND" || fail "production keyring checksum is pinned"; pass "production keyring checksum is pinned"
+grep -Fq 'REPOSITORY_SHA256=${PONDHOUSE_REPOSITORY_SHA256:-a75d3d23d838822990efb2af6a85333b26678a6c6331518bf83a4efbd71f0667}' "$COMMAND" || fail "production repository checksum is pinned"; pass "production repository checksum is pinned"
 if grep -Fq 'configure_employee_zshrc' "$COMMAND"; then fail "migration duplicates package-owned shell policy"; fi; pass "migration delegates shell policy to package reconcilers"
 
 fixture=$(make_fixture dry-run)
@@ -392,13 +391,16 @@ grep -Fqx 'use --global node@22 npm:pnpm' "$fixture/home/mise-actions" || fail "
 cmp -s "$fixture/share/tmux/tmux.conf" "$fixture/home/.config/tmux/tmux.conf" || fail "migration copies packaged tmux config"; pass "migration copies packaged tmux config"
 [[ -f $fixture/home/.config/tmux/local.conf ]] || fail "migration retains tmux extension point"; pass "migration retains tmux extension point"
 for script in \
-  herdr-close-tab.sh herdr-kill-pane.sh herdr-move-tab.sh \
-  herdr-renumber-after-pane-exit.sh herdr-renumber-tabs.sh; do
+  herdr-close-tab.sh herdr-kill-pane.sh herdr-move-tab.sh; do
   cmp -s "$fixture/share/scripts/$script" "$fixture/home/scripts/$script" || \
     fail "migration installs $script"
   [[ -x $fixture/home/scripts/$script ]] || fail "migration makes $script executable"
 done
 pass "migration installs Herdr tab lifecycle scripts"
+[[ ! -e $fixture/home/scripts/herdr-renumber-tabs.sh && \
+  ! -e $fixture/home/scripts/herdr-renumber-after-pane-exit.sh ]] || \
+  fail "migration must not seed retired renumbering helpers"
+pass "migration leaves renumbering to packaged Herdr Auto Title"
 
 run_count=$(find "$fixture/state" -mindepth 1 -maxdepth 1 -type d | wc -l)
 already_upgraded_output=$(run_migration "$fixture" --yes)

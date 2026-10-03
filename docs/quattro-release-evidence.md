@@ -1,6 +1,40 @@
 # Quattro Rollout Evidence
 
-## Current pin: 2026.10.01-1
+## Current pin: 2026.10.03-1
+
+The v3 upgrader and future ISO builds target the stable Herdr Auto Title release.
+Package source: `f5872a36404b106537312212d8e34b2496448407`.
+Publication: <https://github.com/pondhouse-data/pondhouse-omarchy/actions/runs/37110471238>.
+Snapshot: `https://packages.pondhouse-data.com/snapshots/2026.10.03-1/x86_64`.
+
+| Artifact | SHA-256 |
+| --- | --- |
+| `pondhouse-keyring-2026.10.03-1-any.pkg.tar.zst` | `73b146847748356f7fe64e046235e2d76fbb4be34eb93d6a8fee70ef81dab3d6` |
+| `pondhouse-omarchy-2026.10.03-1-x86_64.pkg.tar.zst` | `9e8db36ad7bbb14a6437f99aff4b4a3b120ca91c25c90168f067c1c728f9addf` |
+| `pondhouse.db.tar.gz` | `a75d3d23d838822990efb2af6a85333b26678a6c6331518bf83a4efbd71f0667` |
+
+Verified on 3 October: all three signatures use signing subkey
+`68B44A47FF98508F594ECEC1BC705B1A8A53E72E`; stable matches the immutable snapshot,
+and repository hashes match both downloaded packages. Published shell defaults,
+close/move helpers, migration `029`, cleanup code, and plugin setup command match
+the tested source. Evidence: `/tmp/opencode/pondhouse-release-2026.10.03-1`.
+
+The full package suite, both local package builds, and publication workflow
+passed, including CI's privileged Sunshine/UFW tests. Packaged migration `029`
+passed fresh and prior-marker upgrade fixtures with real Herdr plugin registration
+in isolated employee homes, twice each. Fifteen focused tests cover guarded
+hook removal, private backups, employee overrides, customized/symlinked paths,
+disabled plugins, failed registration/restart, and retry behavior. The plugin
+is a pinned prebuilt v0.11.0 payload; employees need no Go or GitHub download.
+The v3 upgrader no longer seeds the retired renumbering scripts.
+ISO VM-free tests (including 73 Python tests) and the updated v3 migration
+contract suite passed with the new pins.
+
+This release does not claim a new ISO image or full desktop installation.
+The source pins apply to future ISO builds and v3 upgrades. Existing running
+Bash/Zsh shells need restarting after migration to unload their in-memory hooks.
+
+## Previous pin: 2026.10.01-1
 
 The v3 upgrader and ISO builder target the stable Starship-default release.
 Package source: `5aaceda0c2b38ed728be9611dca52004f72c5cfc`.
@@ -26,7 +60,7 @@ Published payloads match the tested Starship template and migration, and databas
 hashes match both packages. No new ISO image or full desktop installation was
 performed for this release; these pins apply to future builds and upgrades.
 
-## Previous pin: 2026.09.27-1
+## Historical pin: 2026.09.27-1
 
 The v3 upgrader and ISO builder target the stable Sunshine-readiness release
 `pondhouse-omarchy 2026.09.27-1` from
